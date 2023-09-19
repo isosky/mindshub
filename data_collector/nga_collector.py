@@ -17,8 +17,8 @@ def collect_nga_post_list_by_page(page):
     print(page_url)
     text = requests.get(page_url, headers=get_nga_headers()
                         ).content.decode('gbk', 'ignore')
-    # with open('qqww.html', 'wb') as f:
-    #     f.write(text.encode('utf8'))
+    with open('qqww.html', 'wb') as f:
+        f.write(text.encode('utf8'))
     # return
     # print("*" * 10)
     pl = re.compile(r"<td class='c1'><a id='t_rc\d_\d*' title='打开新窗口' href='\/read.php\?tid=(\d*)'.*?(\d*)<\/a><\/td>.*?class='topic'>(.*?)</a>(.*?)a href='\/nuke.php\?func=ucp&uid=(\d*)", re.S)
@@ -37,6 +37,7 @@ def collect_nga_post_list_by_page(page):
 
 
 def collect_nga_post_list():
+    print("开始获取nga帖子列表")
     conn, cursor = connect_database()
     cursor.execute(
         "select tid,reply_get from nga_post where is_dead is null")
@@ -244,8 +245,11 @@ def collect_nga_one_page_thread():
     while not page_queue.empty():
         npp_id, tid, page = page_queue.get()
         print(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
-        collect_nga_one_page(npp_id, tid, page)
-        time.sleep(4)
+        temp = collect_nga_one_page(npp_id, tid, page)
+        if temp:
+            time.sleep(4)
+        else:
+            break
 
 
 page_queue = queue.Queue()
