@@ -35,19 +35,19 @@ def get_fund_total_data(getfry=False, getall=False):
                     "holding_profit": i['holding_profit'], "cost": i['cost'], "holding_fraction": round(i['holding_fraction'], 2), "fund_label": fl})
     res.sort(key=lambda x: x["cumulative_profit"], reverse=True)
     # print(res)
-    conn.close()
 
-    # if getfry:
-    #     temp = c_ft.execute("select fund_code from fry where user_name='W'")
-    #     fry_code = []
-    #     for i in temp:
-    #         fry_code.append(i[0])
-    #     fry_res = []
-    #     for i in res:
-    #         if i['fund_code'] in fry_code:
-    #             fry_res.append(i)
-    #     conn_ft.close()
-    #     return fry_res
+    if getfry:
+        cursor.execute("select fund_code from fund_operation_lable where operation_label = '榜一'")
+        temp = cursor.fetchall()
+        fry_code = []
+        for i in temp:
+            fry_code.append(i['fund_code'])
+        fry_res = []
+        for i in res:
+            if i['fund_code'] in fry_code:
+                fry_res.append(i)
+        return fry_res
+    conn.close()
     return res
 
 

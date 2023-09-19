@@ -654,6 +654,20 @@ def get_fund_total_data():
     return json.dumps({"data": temp})
 
 
+@ app.route('/getfryfundtable')
+@auth.login_required
+def getfryfundtable():
+    temp = fund_total.get_fund_total_data(getfry=True)
+    return json.dumps({"data": temp})
+
+
+@ app.route('/getfundalldata')
+@auth.login_required
+def getfundalldata():
+    temp = fund_total.get_fund_total_data(getall=True)
+    return json.dumps({"data": temp})
+
+
 @app.route('/get_fund_remain_chart_data', methods=['POST'])
 @auth.login_required
 def get_fund_remain_chart_data():
