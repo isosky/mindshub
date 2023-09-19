@@ -11,7 +11,7 @@ from flask_httpauth import HTTPTokenAuth
 from base import base
 from data_collector import fund_collector
 from fund import fund_base, fund_estimate, fund_order, fund_total
-from module import cycling, dft, person, schedule, task, travel
+from module import cycling, dft, person, schedule, task, travel, nga_post
 
 # TODO import样式统一
 
@@ -776,6 +776,26 @@ def deletedft():
 @auth.login_required
 def getdftdir():
     return json.dumps(dft.get_dft_option())
+
+
+# #####################################
+# 定义process的函数
+# #####################################
+
+@ app.route('/getposttabledata')
+@auth.login_required
+def getposttabledata():
+    temp = nga_post.getposttabledata()
+    return json.dumps(temp)
+
+
+@ app.route('/getreplytabledata', methods=['POST'])
+@auth.login_required
+def getreplytabledata():
+    json_data = json.loads(request.get_data())
+    tid = json_data['tid']
+    temp = nga_post.getreplytabledata(tid)
+    return json.dumps(temp)
 
 
 if __name__ == '__main__':
