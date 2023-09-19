@@ -423,7 +423,7 @@ def get_bar_data_from_task():
     t = cal_begin()
     conn, cursor = connect_database()
     cursor.execute(
-        "select type,sub_type,count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s) group by type,sub_type order by 1,2,3", [iswork, t, t])
+        "select type,sub_type,count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s) group by type,sub_type order by 3,1,2", [iswork, t, t])
     yAxisdata = []
     for i in cursor:
         yAxisdata.append(i[0]+'-'+i[1])

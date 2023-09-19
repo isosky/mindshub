@@ -10,7 +10,7 @@ from flask_httpauth import HTTPTokenAuth
 
 from base import base
 from data_collector import fund_collector
-from fund import fund_base, fund_estimate, fund_order, fund_total
+from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting
 from module import cycling, dft, person, schedule, task, travel, nga_post
 
 # TODO import样式统一
@@ -684,6 +684,95 @@ def get_fund_total_chart_data():
     fund_code = json_data['fund_code']
     res = fund_total.get_fund_total_chart_data(fund_code)
     return json.dumps(res)
+
+
+# #####################################
+# 定义fishtang的函数
+# #####################################
+
+@ app.route('/get_fund_base_label')
+@auth.login_required
+def get_fund_base_label():
+    temp, temp_option = fund_setting.get_fund_base_label()
+    return json.dumps({"data": temp, "data_option": temp_option})
+
+
+@ app.route('/get_fund_customer_label_option')
+@auth.login_required
+def get_fund_customer_label_option():
+    option_data, table_data = fund_setting.get_fund_customer_label_option()
+    temp = {'option_data': option_data, 'table_data': table_data}
+    return json.dumps(temp)
+
+
+@ app.route('/delete_fund_customer_label', methods=['POST'])
+@auth.login_required
+def delete_fund_customer_label():
+    json_data = json.loads(request.get_data())
+    fund_label_id = json_data['fund_operation_lable_id']
+    fund_setting.delete_fund_customer_label(fund_label_id)
+    return json.dumps({"data": "ok"})
+
+
+@ app.route('/add_fund_customer_label', methods=['POST'])
+@auth.login_required
+def add_fund_customer_label():
+    json_data = json.loads(request.get_data())
+    fund_customer_label_selected = json_data['fund_customer_label_selected']
+    fund_customer_fund_selected = json_data['fund_customer_fund_selected']
+    temp = fund_setting.add_fund_customer_label(fund_customer_label_selected, fund_customer_fund_selected)
+    return json.dumps({'res': temp})
+
+
+@ app.route('/add_fund_author', methods=['POST'])
+@auth.login_required
+def add_fund_author():
+    json_data = json.loads(request.get_data())
+    new_author = json_data['new_author']
+    apps_selected = json_data['apps_selected']
+    isfirm = json_data['isfirm']
+    temp = fund_setting.add_fund_author(new_author, apps_selected, isfirm)
+    return json.dumps(temp)
+
+
+@ app.route('/add_new_label', methods=['POST'])
+@auth.login_required
+def add_new_label():
+    json_data = json.loads(request.get_data())
+    new_fund_label = json_data['new_fund_label']
+    temp = fund_setting.add_new_label(new_fund_label)
+    return json.dumps({'res': temp})
+
+
+@ app.route('/add_fund_label', methods=['POST'])
+@auth.login_required
+def add_fund_label():
+    json_data = json.loads(request.get_data())
+    fund_base_label_selected = json_data['fund_base_label_selected']
+    fund_had_code_selected = json_data['fund_had_code_selected']
+    temp = fund_setting.add_fund_label(fund_base_label_selected, fund_had_code_selected)
+    return json.dumps({'res': temp})
+
+
+@ app.route('/get_fund_base_label_data')
+@auth.login_required
+def get_fund_base_label_data():
+    temp = fund_setting.get_fund_base_label_data()
+    return json.dumps(temp)
+
+
+@ app.route('/get_author_app_option')
+@auth.login_required
+def get_author_app_option():
+    temp = fund_setting.get_author_app_option()
+    return json.dumps(temp)
+
+
+@ app.route('/get_fund_author_data')
+@auth.login_required
+def get_fund_author_data():
+    temp = fund_setting.get_fund_author_data()
+    return json.dumps(temp)
 
 
 # #####################################
