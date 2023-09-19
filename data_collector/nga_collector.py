@@ -3,10 +3,10 @@
 
 import requests
 import re
-import sqlite3
-import os
 import time
 from datetime import datetime
+import threading
+import queue
 
 from base.base import connect_database
 from base.config import get_nga_headers
@@ -71,6 +71,34 @@ def collect_nga_post_list():
     cursor.executemany(
         "insert into nga_post (tid,reply_count,post_name,nga_user_id,operate_time,fid,reply_get) values (%s,%s,%s,%s,now(),7,-1)", insert_data)
     conn.commit()
+    print("开始生成page列表")
+    generate_nga_page_list()
+    conn.close()
+
+
+def generate_nga_page_list():
+    conn, cursor = connect_database()
+    cursor.execute("select tid,reply_count from nga_post")
+    temp_list = cursor.fetchall()
+    cursor.execute("select tid,max(page) from nga_post_page_list group by tid")
+    temp_exists_page = cursor.fetchall()
+    temp_exists_page = {x[0]: x[1] for x in temp_exists_page}
+
+    temp_data = []
+    for i in temp_list:
+        max_pages = int(i[1]/20)+1
+        # print(min_pages, max_pages)
+        # print("*"*10)
+        # print(i[0], i[1])
+        if i[0] not in temp_exists_page:
+            for pg in range(1, max_pages+1):
+                temp_data.append([i[0], pg])
+        else:
+            for pg in range(temp_exists_page[i[0]], max_pages+1):
+                temp_data.append([i[0], pg])
+    print("需要更新page数量为：%s" % (len(temp_data)))
+    cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
+    conn.commit()
     conn.close()
 
 
@@ -91,7 +119,7 @@ def add_nga_user(user_data):
     conn.close()
 
 
-def collect_nga_one_page(tid, page, now_row):
+def collect_nga_one_page(npp_id, tid, page):
     '''
     page：页数
     now_row：已经抓了多少行了
@@ -149,9 +177,9 @@ def collect_nga_one_page(tid, page, now_row):
         # print(i)
         user_id = i[0]
         reply_row = i[1]
-        if int(reply_row) <= now_row:
-            # print(reply_row, '跳过')
-            continue
+        # if int(reply_row) <= now_row:
+        #     # print(reply_row, '跳过')
+        #     continue
         time = str(i[2])+':00'
         reply = i[3]
         # 处理引用
@@ -180,11 +208,11 @@ def collect_nga_one_page(tid, page, now_row):
     conn, cursor = connect_database()
     # 插入回复
     if insert_data != []:
-        max_row = insert_data[-1][2]
+        # max_row = insert_data[-1][2]
         cursor.executemany(
             "insert into nga_post_reply (tid,nga_user_id,reply_sequence,reply_time,content) values (%s,%s,%s,%s,%s)", insert_data)
-        cursor.execute("update nga_post set reply_get=%s,operate_time=now() where tid=%s", [
-            max_row, tid])
+        # cursor.execute("update nga_post set reply_get=%s,operate_time=now() where tid=%s", [
+        #     max_row, tid])
         conn.commit()
     # 如果回复有引用
     if quote_tid != []:
@@ -205,33 +233,55 @@ def collect_nga_one_page(tid, page, now_row):
         cursor.executemany(
             "insert into nga_reply_img (tid,nga_user_id,reply_sequence,image_url) values (%s,%s,%s,%s)", img_data)
         conn.commit()
+    # 更新npp
+    cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where npp_id=%s", [npp_id])
+    conn.commit()
     conn.close()
     return True
+
+
+def collect_nga_one_page_thread():
+    while not page_queue.empty():
+        npp_id, tid, page = page_queue.get()
+        print(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
+        collect_nga_one_page(npp_id, tid, page)
+        time.sleep(4)
+
+
+page_queue = queue.Queue()
 
 
 def collect_nga_post():
     # TODO 重要帖子优先爬取
     # TODO 优化500个回复以上的帖子的抓取逻辑
     conn, cursor = connect_database()
-    cursor.execute(
-        "select tid,reply_get,reply_count from nga_post where is_dead is null and reply_get<reply_count and reply_count <500 order by operate_time desc ")
-    for i in cursor:
-        print("{0}:帖子{1},总计有{2}条，现在抓到{3}条".format(
-            str(datetime.now()), str(i[0]), str(i[2]), str(i[1])))
-        # return
-        min_pages = int(i[1]/20)
-        max_pages = int(i[2]/20)+1
-        # print(min_pages, max_pages)
-        for pg in range(min_pages+1, max_pages+1):
-            rs = collect_nga_one_page(i[0], pg, i[1])
-            if rs is False:
-                return
-            time.sleep(5)
+    # cursor.execute(
+    #     "select tid,reply_get,reply_count from nga_post where is_dead is null and reply_get<reply_count and reply_count <500 order by operate_time desc ")
+    # for i in cursor:
+    #     print("{0}:帖子{1},总计有{2}条，现在抓到{3}条".format(
+    #         str(datetime.now()), str(i[0]), str(i[2]), str(i[1])))
+    #     # return
+    #     min_pages = int(i[1]/20)
+    #     max_pages = int(i[2]/20)+1
+    #     # print(min_pages, max_pages)
+    #     for pg in range(min_pages+1, max_pages+1):
+    #         rs = collect_nga_one_page(i[0], pg, i[1])
+    #         if rs is False:
+    #             return
+    #         time.sleep(5)
+    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
 
+    temp = cursor.fetchall()
+    for i in temp:
+        page_queue.put([i[0], i[1], i[2]])
 
-# if __name__ == "__main__":
-#     print(datetime.now(), "开始请求前两页的回复")
-#     collect_nga_post_list()
-#     print(datetime.now(), "开始刷新列表")
-#     collect_nga_post()
-#     print(datetime.now(), "结束本次抓取")
+    threads = []
+    for i in range(5):
+        thread = threading.Thread(target=collect_nga_one_page_thread)
+        thread.name = f"Thread_{i}"  # 为每个线程设置一个唯一的名称
+        threads.append(thread)
+        thread.start()
+
+    # 等待所有线程完成
+    for thread in threads:
+        thread.join()
