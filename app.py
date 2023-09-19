@@ -8,16 +8,10 @@ from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from flask_httpauth import HTTPTokenAuth
 
-from data_collector import fund_collector
-import module.cycling
-import module.dft
-import module.person
-import module.schedule
-from fund import fund_estimate, fund_order, fund_base, fund_total
 from base import base
-from module import book as book
-from module import task
-from module import travel as travel
+from data_collector import fund_collector
+from fund import fund_base, fund_estimate, fund_order, fund_total
+from module import cycling, dft, person, schedule, task, travel
 
 # TODO import样式统一
 
@@ -249,7 +243,7 @@ def updateprocess():
 
 @app.route('/initschedule')
 def initschedule():
-    return json.dumps(module.schedule.run_schedule())
+    return json.dumps(schedule.run_schedule())
 
 
 @app.route('/addschedule', methods=['POST'])
@@ -261,15 +255,15 @@ def addschedule():
     schedule_type = json_data['schedule_type']
     schedule_frequence = json_data['schedule_frequence']
     task_name = json_data['task_name']
-    temp = module.schedule.add_schedule(type, sub_type, schedule_type,
-                                        schedule_frequence, task_name)
+    temp = schedule.add_schedule(type, sub_type, schedule_type,
+                                 schedule_frequence, task_name)
     return json.dumps({'result': temp})
 
 
 @app.route('/getscheduledata')
 @auth.login_required
 def getscheduledata():
-    return json.dumps({'data': module.schedule.get_schedule()})
+    return json.dumps({'data': schedule.get_schedule()})
 
 
 @app.route('/getscheduletaskdata', methods=['POST'])
@@ -277,7 +271,7 @@ def getscheduledata():
 def getscheduletaskdata():
     json_data = json.loads(request.get_data())
     schedule_id = json_data['schedule_id']
-    return json.dumps({'data': module.schedule.get_task_by_schedule_id(schedule_id)})
+    return json.dumps({'data': schedule.get_task_by_schedule_id(schedule_id)})
 
 
 @app.route('/forbidschedule', methods=['POST'])
@@ -285,7 +279,7 @@ def getscheduletaskdata():
 def forbidschedule():
     json_data = json.loads(request.get_data())
     schedule_id = json_data['schedule_id']
-    return json.dumps({'status': module.schedule.forbid_schedule(schedule_id)})
+    return json.dumps({'status': schedule.forbid_schedule(schedule_id)})
 
 
 @app.route('/deleteschedule', methods=['POST'])
@@ -293,7 +287,7 @@ def forbidschedule():
 def deleteschedule():
     json_data = json.loads(request.get_data())
     schedule_id = json_data['schedule_id']
-    return json.dumps({'status': module.schedule.delete_schedule(schedule_id)})
+    return json.dumps({'status': schedule.delete_schedule(schedule_id)})
 
 
 @app.route('/startschedule', methods=['POST'])
@@ -301,7 +295,7 @@ def deleteschedule():
 def startschedule():
     json_data = json.loads(request.get_data())
     schedule_id = json_data['schedule_id']
-    return json.dumps({'status': module.schedule.enable_schedule(schedule_id)})
+    return json.dumps({'status': schedule.enable_schedule(schedule_id)})
 
 
 @app.route('/modifyschedule', methods=['POST'])
@@ -314,7 +308,7 @@ def modifyschedule():
     schedule_type = json_data['schedule_type']
     schedule_frequence = json_data['schedule_frequence']
     task_name = json_data['schedule_content']
-    return json.dumps({'status': module.schedule.update_schedule(schedule_id, type, sub_type, schedule_type, schedule_frequence, task_name)})
+    return json.dumps({'status': schedule.update_schedule(schedule_id, type, sub_type, schedule_type, schedule_frequence, task_name)})
 
 
 # #####################################
@@ -447,21 +441,21 @@ def querycity():
 @ app.route('/getcompany')
 @auth.login_required
 def getcompany():
-    res = module.person.get_company()
+    res = person.get_company()
     return json.dumps(res)
 
 
 @ app.route('/getperson')
 @auth.login_required
 def getperson():
-    res = module.person.get_person()
+    res = person.get_person()
     return json.dumps(res)
 
 
 @ app.route('/getperson_option')
 @auth.login_required
 def getperson_option():
-    res = module.person.get_person_count()
+    res = person.get_person_count()
     return json.dumps(res)
 
 
@@ -473,7 +467,7 @@ def addperson():
     person_name = json_data['person_name']
     person_post = json_data['person_post']
     force = json_data['force']
-    temp = module.person.add_person(company, person_name, person_post, force)
+    temp = person.add_person(company, person_name, person_post, force)
     return json.dumps(temp)
 
 
@@ -482,7 +476,7 @@ def addperson():
 def deleteperson():
     json_data = json.loads(request.get_data())
     personid = json_data['personid']
-    module.person.delete_person(personid)
+    person.delete_person(personid)
     return json.dumps({'result': True})
 
 
@@ -714,34 +708,7 @@ def getscatterdata():
     type = json_data['type']
     sub_type = json_data['sub_type']
     person_id = json_data['person_id']
-    return json.dumps(module.person.get_scatter_data_from_task(type, sub_type, person_id))
-
-
-# #####################################
-# 定义book的函数
-# #####################################
-
-@ app.route('/commitbookorders', methods=['POST'])
-@auth.login_required
-def commitbookorders():
-    json_data = json.loads(request.get_data())
-    bookorderform = json_data['bookorderform']
-    temp = book.buybook(bookorderform)
-    return json.dumps({'res': temp})
-
-
-@ app.route('/getbook')
-@auth.login_required
-def getbook():
-    temp = book.getbook()
-    return json.dumps({'data': temp})
-
-
-@ app.route('/getbookoption')
-@auth.login_required
-def getbookoption():
-    temp = book.getbookoption()
-    return json.dumps(temp)
+    return json.dumps(person.get_scatter_data_from_task(type, sub_type, person_id))
 
 
 # #####################################
@@ -758,7 +725,7 @@ def gettravel():
 @ app.route('/getcycling')
 @auth.login_required
 def getcycling():
-    temp = module.cycling.get_cycling()
+    temp = cycling.get_cycling()
     return json.dumps(temp)
 
 
@@ -769,8 +736,8 @@ def getcycling():
 @ app.route('/getdftdata')
 @auth.login_required
 def getdftdata():
-    temp = module.dft.get_dft()
-    unread_count = module.dft.get_dft_data_unread_count()
+    temp = dft.get_dft()
+    unread_count = dft.get_dft_data_unread_count()
     return json.dumps({'data': temp, 'unread_count': unread_count})
 
 
@@ -779,7 +746,7 @@ def getdftdata():
 def getappendixdata():
     json_data = json.loads(request.get_data())
     doc_id = json_data['doc_id']
-    temp = module.dft.get_appendix_by_doc_id(doc_id)
+    temp = dft.get_appendix_by_doc_id(doc_id)
     return json.dumps({'data': temp})
 
 
@@ -790,9 +757,9 @@ def commitdft():
     dftform = json_data['dftform']
     mode = json_data['mode']
     if mode == 'add':
-        temp = module.dft.add_dft(dftform, isbyupdate=False)
+        temp = dft.add_dft(dftform, isbyupdate=False)
     else:
-        temp = module.dft.update_dft(dftform)
+        temp = dft.update_dft(dftform)
     return json.dumps(temp)
 
 
@@ -801,14 +768,14 @@ def commitdft():
 def deletedft():
     json_data = json.loads(request.get_data())
     doc_id = json_data['doc_id']
-    temp = module.dft.delete_dft(doc_id)
+    temp = dft.delete_dft(doc_id)
     return json.dumps({'res': temp})
 
 
 @ app.route('/getdftdir')
 @auth.login_required
 def getdftdir():
-    return json.dumps(module.dft.get_dft_option())
+    return json.dumps(dft.get_dft_option())
 
 
 if __name__ == '__main__':

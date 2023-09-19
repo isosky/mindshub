@@ -109,3 +109,4 @@ func_test.py
 config.py
 *dbconn.py
 function*txt
+*.html
