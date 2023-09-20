@@ -95,7 +95,7 @@ def generate_nga_page_list():
             for pg in range(1, max_pages+1):
                 temp_data.append([i[0], pg])
         else:
-            for pg in range(temp_exists_page[i[0]], max_pages+1):
+            for pg in range(temp_exists_page[i[0]]+1, max_pages+1):
                 temp_data.append([i[0], pg])
     print("需要更新page数量为：%s" % (len(temp_data)))
     cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)

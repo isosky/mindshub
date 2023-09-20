@@ -115,7 +115,7 @@ def run_schedule(force=False):
             conn.commit()
         cursor.execute("update sys_cfg set value =%s where id=1", [d])
         cursor.execute(
-            "update task set status=3 where etime<NOW() and isfinish=0 and isabandon=0")
+            "update task set status=3 where etime<date(now()) and isfinish=0 and isabandon=0")
         conn.commit()
 
         cursor.execute(
