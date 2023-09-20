@@ -46,9 +46,9 @@ def add_buy_order(orderform):
     else:
         methods = 's'
     print(orderform)
-    cursor.execute("insert into fund_orders (fund_code,fund_name,trade_time,transaction_amount,unit_net_value,order_amount,order_date,transaction_type,transaction_methods,is_fry) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+    cursor.execute("insert into fund_orders (fund_code,fund_name,trade_time,transaction_amount,unit_net_value,order_amount,order_date,transaction_type,transaction_methods,is_fry,remain_volume) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                    [orderform['fund_code'], fund_name, orderform['trade_time'], orderform['fund_shares'],
-                    orderform['fund_prices'],  orderform['order_sum'], orderform['check_time'], 1, methods, orderform['isfry']])
+                    orderform['fund_prices'],  orderform['order_sum'], orderform['check_time'], 1, methods, orderform['isfry'], orderform['fund_shares']])
     conn.commit()
     fund_shares, buy_sum, sell_sum = get_fund_details(
         fund_code=orderform['fund_code'])
@@ -100,7 +100,7 @@ def add_sell_order(orderform):
         fund_shares,  orderform['fund_code']])
     conn.commit()
     conn.close()
-    cal_fund_ramain_fraction(fund_code=orderform["fund_code"])
+    cal_fund_ramain_fraction(orderform["fund_code"], fund_shares)
     return "ok"
 
 
@@ -222,21 +222,26 @@ def get_fund_closed_net_value():
     return res
 
 
-def cal_fund_ramain_fraction(fund_code):
+def cal_fund_ramain_fraction(fund_code, fund_shares):
     conn, cursor = connect_database(dictionary=True)
+    if fund_shares == 0:
+        cursor.execute(
+            "update fund_orders set remain_volume=0 where fund_code=%s", [fund_code])
+        conn.commit()
+        conn.close()
+        return
     # 特殊情况，清仓的时候，直接清空即可
-    shares_now,  buy_sum, sell_sum = get_fund_details(fund_code=fund_code)
     # print(shares_now)
     cursor.execute(
         "select order_id,transaction_amount from fund_orders where fund_code=%s and transaction_type=1 order by order_date desc", [fund_code])
     buyorders = cursor.fetchall()
     temp_update = []
     for i in buyorders:
-        if round(i['transaction_amount'], 2) <= shares_now:
-            shares_now -= round(i['transaction_amount'], 2)
+        if round(i['transaction_amount'], 2) <= fund_shares:
+            fund_shares -= round(i['transaction_amount'], 2)
             temp_update.append((i['transaction_amount'], i['order_id']))
         else:
-            temp_update.append((round(shares_now, 2), i['order_id']))
+            temp_update.append((round(fund_shares, 2), i['order_id']))
             break
     # print(temp_update)
     cursor.execute(
@@ -275,6 +280,8 @@ def fund_update_once():
         fund_shares, buy_sum, sell_sum = get_fund_details(i[0])
         cursor.execute("update fund_total set holding_fraction=%s,total_purchase_amount=%s,total_sale_amount=%s,holding_amount=round(yesterday_net_value*%s,2) where fund_code=%s", [
             fund_shares, buy_sum, sell_sum, fund_shares, i[0]])
+        conn.commit()
+        # cal_fund_ramain_fraction(i[0], fund_shares)
     conn.commit()
     cursor.execute(
         "update fund_total set cost=Null,cost_update_time=Null where holding_fraction=0")
