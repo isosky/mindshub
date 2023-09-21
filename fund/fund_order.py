@@ -263,11 +263,9 @@ def update_fund_cost(fund_code, cost):
 
 
 def fund_update_once():
-    fund_collector.collect_fund_net_history()
+    # fund_collector.collect_fund_net_history()
     conn, cursor = connect_database()
-    # TODO 这地方先改成从fund_total里面拿fund_code
-    # cursor.execute("select fund_code from fund_base")
-    cursor.execute("select fund_code from fund_total where holding_fraction>0")
+    cursor.execute("select distinct fund_code from fund_orders")
     fund_code_list = cursor.fetchall()
     # 先更新fund_total里面的yesterday_net_value
     cursor.execute("select max(net_value_date) from fund_net_history")
@@ -284,7 +282,7 @@ def fund_update_once():
         # cal_fund_ramain_fraction(i[0], fund_shares)
     conn.commit()
     cursor.execute(
-        "update fund_total set cost=Null,cost_update_time=Null where holding_fraction=0")
+        "update fund_total set cost=Null,cost_update_time=now() where holding_fraction=0")
     cursor.execute(
         "update fund_total set cumulative_profit=round(total_sale_amount+holding_amount-total_purchase_amount,2)")
     conn.commit()
