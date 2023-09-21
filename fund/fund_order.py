@@ -262,11 +262,13 @@ def update_fund_cost(fund_code, cost):
     return "ok"
 
 
-def fund_update_once():
+def fund_update_once(fund_code_list: list = None):
     # fund_collector.collect_fund_net_history()
     conn, cursor = connect_database()
-    cursor.execute("select distinct fund_code from fund_orders")
-    fund_code_list = cursor.fetchall()
+    if not fund_code_list:
+        cursor.execute("select distinct fund_code from fund_orders")
+        fund_code_list = cursor.fetchall()
+        fund_code_list = [x[0] for x in fund_code_list]
     # 先更新fund_total里面的yesterday_net_value
     cursor.execute("select max(net_value_date) from fund_net_history")
     maxtime = cursor.fetchone()[0]
@@ -275,9 +277,9 @@ def fund_update_once():
                    maxtime, maxtime])
     conn.commit()
     for i in fund_code_list:
-        fund_shares, buy_sum, sell_sum = get_fund_details(i[0])
+        fund_shares, buy_sum, sell_sum = get_fund_details(i)
         cursor.execute("update fund_total set holding_fraction=%s,total_purchase_amount=%s,total_sale_amount=%s,holding_amount=round(yesterday_net_value*%s,2) where fund_code=%s", [
-            fund_shares, buy_sum, sell_sum, fund_shares, i[0]])
+            fund_shares, buy_sum, sell_sum, fund_shares, i])
         conn.commit()
         # cal_fund_ramain_fraction(i[0], fund_shares)
     conn.commit()
@@ -285,6 +287,10 @@ def fund_update_once():
         "update fund_total set cost=Null,cost_update_time=now() where holding_fraction=0")
     cursor.execute(
         "update fund_total set cumulative_profit=round(total_sale_amount+holding_amount-total_purchase_amount,2)")
+    cursor.execute(
+        "update fund_total set holding_return_rate=round((yesterday_net_value-cost)/cost*100, 2)")
+    cursor.execute(
+        "update fund_total set holding_profit=round((yesterday_net_value-cost)*holding_fraction, 2)")
     conn.commit()
     conn.close()
 
