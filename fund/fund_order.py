@@ -263,7 +263,7 @@ def update_fund_cost(fund_code, cost):
 
 
 def fund_update_once(fund_code_list: list = None):
-    # fund_collector.collect_fund_net_history()
+    fund_collector.collect_fund_net_history()
     conn, cursor = connect_database()
     if not fund_code_list:
         cursor.execute("select distinct fund_code from fund_orders")
