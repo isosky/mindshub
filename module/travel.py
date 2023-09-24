@@ -8,7 +8,7 @@ def get_travel():
     temp_city_data = cursor.fetchall()
     city_data = {}
     for i in temp_city_data:
-        city_data[i[0]] = {"lon": i[1], "lat": i[2]}
+        city_data[i[1]] = {"lon": i[2], "lat": i[3]}
 
     cursor.execute(
         "select from_city,to_city,travel_type,count(*) as c from travel group by from_city,to_city,travel_type")
@@ -78,12 +78,15 @@ def init_travel():
     cursor.execute("select * from base_city_geo")
     city_datas = {}
     for i in cursor:
-        city_datas[i[0]] = {'lon': i[1], "lat": i[2]}
+        city_datas[i[1]] = {'lon': i[2], "lat": i[3]}
     cursor.execute(
         "select task_id,task_name,etime from task where sub_type='出行' and isfinish=1 and task_id not in (select task_id from travel)")
+    temp = cursor.fetchall()
     temp_datas = []
-    if len(cursor.fetchall()) > 0:
-        for i in cursor:
+    msg = ''
+    if len(temp) > 0:
+        for i in temp:
+            print(i)
             temp_travel, travel_type = i[1].split('：')
             from_city, to_city = temp_travel.split('→')
             if from_city not in city_datas.keys() or to_city not in city_datas.keys():
