@@ -295,6 +295,25 @@ def fund_update_once(fund_code_list: list = None):
     conn.close()
 
 
+def add_new_fund(new_fund_code: str, new_fund_name: str):
+    conn, cursor = connect_database()
+    cursor.execute("select count(*) from fund_base where fund_code=%s", [new_fund_code])
+    temp = cursor.fetchone()[0]
+    if temp > 0:
+        return "%s 已经存在" % (new_fund_code)
+    cursor.execute("insert into fund_base (fund_code,fund_name) values (%s,%s)", [new_fund_code, new_fund_name])
+    conn.commit()
+    conn.close()
+    return "ok"
+
+
+def get_fund_base() -> list:
+    conn, cursor = connect_database(dictionary=True)
+    cursor.execute("select fund_code,fund_name from fund_base")
+    temp = cursor.fetchall()
+    conn.close()
+    return temp
+
 # def updatetotalprice(fund_code, time=None):
 #     if time == None:
 #         time = datetime.datetime.today()

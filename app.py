@@ -556,6 +556,23 @@ def get_funds_for_cost_update():
     return json.dumps({"data": temp, 'data_list': temp_dict})
 
 
+@app.route("/get_fund_base")
+@auth.login_required
+def get_fund_base():
+    temp_data = fund_order.get_fund_base()
+    return json.dumps({"data": temp_data})
+
+
+@app.route("/add_new_fund", methods=['POST'])
+@auth.login_required
+def add_new_fund():
+    json_data = json.loads(request.get_data())
+    new_fund_code = json_data['new_fund_code']
+    new_fund_name = json_data['new_fund_name']
+    msg = fund_order.add_new_fund(new_fund_code, new_fund_name)
+    return json.dumps({"msg": msg})
+
+
 @app.route("/get_cost_info")
 @auth.login_required
 def get_cost_info():
@@ -903,4 +920,5 @@ def getreplytabledata():
 
 if __name__ == '__main__':
     # ls.getlocksreen()
+    # TODO 使用logging模块
     app.run(host='0.0.0.0', port=5000, debug=True)
