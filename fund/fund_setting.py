@@ -9,11 +9,11 @@ from base.base import connect_database
 def get_fund_customer_label_option():
     conn, cursor = connect_database()
     cursor.execute(
-        "select fund_code,fund_name from fund_total  where fund_code not in (select fund_code from fund_operation_lable) and  holding_fraction>0;")
+        "select fund_code,fund_name from fund_total  where fund_code not in (select fund_code from fund_operation_label) and  holding_fraction>0;")
     res = []
     for i in cursor:
         res.append({"value": i[0], "label": i[1]})
-    cursor.execute("select * from fund_operation_lable;")
+    cursor.execute("select * from fund_operation_label;")
     res1 = []
     for i in cursor:
         res1.append({'id': i[0], 'hist_label': i[3],
@@ -24,17 +24,17 @@ def get_fund_customer_label_option():
 
 def delete_fund_customer_label(fund_label_id):
     conn, cursor = connect_database()
-    cursor.execute("delete from fund_operation_lable where id =%s", [fund_label_id])
+    cursor.execute("delete from fund_operation_label where id =%s", [fund_label_id])
     conn.commit()
     conn.close()
 
 
 def add_fund_customer_label(hist_data_selected, fund_hist_code_selected):
     conn, cursor = connect_database()
-    cursor.execute("insert into fund_operation_lable (operation_label,fund_code) values (%s,%s)", [
+    cursor.execute("insert into fund_operation_label (operation_label,fund_code) values (%s,%s)", [
         hist_data_selected, fund_hist_code_selected])
     conn.commit()
-    cursor.execute("update fund_operation_lable set fund_name=(select fund_name from fund_base where fund_operation_lable.fund_code=fund_base.fund_code);")
+    cursor.execute("update fund_operation_label set fund_name=(select fund_name from fund_base where fund_operation_label.fund_code=fund_base.fund_code);")
     conn.commit()
     conn.close()
 

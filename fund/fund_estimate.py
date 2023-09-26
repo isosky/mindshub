@@ -12,7 +12,7 @@ def get_fund_estimate_data():
     for i in cursor:
         labels[i[0]] = i[1][:-1]
     cursor.execute(
-        "select fund_code,operation_label from fund_operation_lable")
+        "select fund_code,operation_label from fund_operation_label")
     c_lables = {}
     for i in cursor:
         c_lables[i[0]] = i[1]

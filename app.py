@@ -757,6 +757,13 @@ def get_fund_total_chart_data():
     return json.dumps(res)
 
 
+@app.route('/get_fund_treemap_label')
+@auth.login_required
+def get_fund_treemap_label():
+    res = fund_total.get_fund_treemap_label()
+    return json.dumps(res)
+
+
 # #####################################
 # 定义fishtang的函数
 # #####################################
@@ -780,7 +787,7 @@ def get_fund_customer_label_option():
 @auth.login_required
 def delete_fund_customer_label():
     json_data = json.loads(request.get_data())
-    fund_label_id = json_data['fund_operation_lable_id']
+    fund_label_id = json_data['fund_operation_label_id']
     fund_setting.delete_fund_customer_label(fund_label_id)
     return json.dumps({"data": "ok"})
 

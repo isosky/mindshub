@@ -3,6 +3,7 @@
 
 from base.base import connect_database
 import math
+import json
 
 
 def get_fund_total_data(getfry=False, getall=False):
@@ -37,7 +38,7 @@ def get_fund_total_data(getfry=False, getall=False):
     # print(res)
 
     if getfry:
-        cursor.execute("select fund_code from fund_operation_lable where operation_label = '榜一'")
+        cursor.execute("select fund_code from fund_operation_label where operation_label = '榜一'")
         temp = cursor.fetchall()
         fry_code = []
         for i in temp:
@@ -154,3 +155,60 @@ def get_fund_total_chart_data(fund_code):
     else:
         conn.close()
         return {"maxdatatime": maxdatatime, 'xAxisdata': xaxisdata, 'seriesdata': seriesdata, 'xaxisrange': t, 'mps': [], "mkl": []}
+
+
+def get_fund_treemap_label():
+    # print("cal had")
+    conn, cursor = connect_database()
+    cursor.execute("select operation_label,fund_code from fund_operation_label")
+    temp = cursor.fetchall()
+    hist_label = {}
+    for i in temp:
+        hist_label[i[1]] = i[0]
+    cursor.execute("select value from sys_cfg where name='amount_limit'")
+    buy_limit = float(cursor.fetchone()[0])
+
+    cursor.execute(
+        "select fund_code,holding_amount,fund_name from fund_total where holding_amount>0")
+    temp = cursor.fetchall()
+    temp_treemap_data = {}
+    temp_treemap_data['未打标签'] = {'name': '未打标签', 'value': 0, 'children': [], 'buy_limit': buy_limit}
+    s = 0
+
+    for i in temp:
+        s += i[1]
+        if i[0] not in hist_label.keys():
+            temp_treemap_data['未打标签']['value'] = round(
+                temp_treemap_data['未打标签']['value']+i[1], 2)
+            temp_treemap_data['未打标签']['children'].append(
+                {'name': i[2], 'value': round(i[1], 2), 'buy_limit': buy_limit})
+            continue
+        temp_label = hist_label[i[0]]
+
+        if temp_label not in temp_treemap_data:
+            temp_treemap_data[temp_label] = {'name': temp_label, 'value': 0, 'children': [], 'buy_limit': buy_limit}
+
+        temp_treemap_data[temp_label]['value'] += round(i[1], 2)
+        temp_treemap_data[temp_label]['children'].append({'name': i[2], 'value': round(i[1], 2), 'buy_limit': buy_limit})
+
+    res_treemap_data = list(temp_treemap_data.values())
+    cursor.execute("select sum(order_amount) from fund_orders where remain_volume>0;")
+    buy_all = cursor.fetchone()[0]
+
+    res_treemap_data.append(
+        {"name": '剩余资金', 'value': round(buy_limit-buy_all, 2), 'buy_limit': buy_limit, "children": [{"name": '剩余资金', 'value': round(buy_limit-buy_all, 2), 'buy_limit': buy_limit}]})
+    # c.execute("insert into ")
+    # print(json.dumps(res_treemap_data))
+    for v in res_treemap_data:
+        v['value'] = round(v['value'], 2)
+    # 将结果存起来
+    # cursor.execute(
+    #     "select count(*) as c from fund_had where had_time=date()")
+    # temp = cursor.fetchone()[0]
+    # print(temp)
+    # if temp == 0:
+    #     cursor.execute("insert into fund_had (had_time,fund_had_json) values (date(),%s)", [
+    #         json.dumps(res_treemap_data)])
+    #     conn.commit()
+    conn.close()
+    return res_treemap_data
