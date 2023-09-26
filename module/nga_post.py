@@ -5,7 +5,7 @@ from base.base import connect_database
 from datetime import datetime, date
 
 
-def getposttabledata(rowcount=100, offset=0):
+def get_nga_post_data(rowcount=100, offset=0):
     conn, cursor = connect_database(dictionary=True)
     cursor.execute("select tid from nga_special_post")
     sdata = cursor.fetchall()
@@ -26,7 +26,7 @@ def getposttabledata(rowcount=100, offset=0):
     return temp
 
 
-def getreplytabledata(tid):
+def get_nga_reply_by_tid(tid):
     conn, cursor = connect_database(dictionary=True)
     cursor.execute("select nga_user_id from nga_special_user")
     sdata = cursor.fetchall()

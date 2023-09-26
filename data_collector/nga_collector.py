@@ -103,6 +103,21 @@ def generate_nga_page_list():
     conn.close()
 
 
+def generate_nga_page_list_by_collector(tid, page_now):
+    conn, cursor = connect_database()
+    cursor.execute("select max(page) from nga_post_page_list where tid=%s ", [tid])
+    temp_exists_page = cursor.fetchall()[0][0]
+    if temp_exists_page is None:
+        temp_exists_page = 0
+    temp_data = []
+    for pg in range(temp_exists_page+1, int(page_now)+1):
+        temp_data.append([tid, pg])
+    print("需要更新page数量为：%s" % (len(temp_data)))
+    cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
+    conn.commit()
+    conn.close()
+
+
 def add_nga_user(user_data):
     conn, cursor = connect_database()
     cursor.execute("delete from nga_user where nga_user_name like 'UID%'")
@@ -120,7 +135,18 @@ def add_nga_user(user_data):
     conn.close()
 
 
-def collect_nga_one_page(npp_id, tid, page):
+def process_special_first(tid, text):
+    conn, cursor = connect_database()
+    re_uid = re.compile(r"<a href='nuke\.php\?func=ucp&uid=(\d*)'.*<h3 id='postsubject0'>(.*?)</h3><br/>", re.S)
+    nga_user_id, post_name = re.findall(re_uid, text)[0]
+    print("%s 是 %s 发的，贴名为 %s" % (tid, nga_user_id, post_name))
+    cursor.execute(
+        "insert into nga_post (tid,reply_count,post_name,nga_user_id,operate_time,fid,reply_get) values (%s,%s,%s,%s,now(),7,-1)", [tid, -1, post_name, nga_user_id])
+    conn.commit()
+    conn.close()
+
+
+def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     '''
     page：页数
     now_row：已经抓了多少行了
@@ -147,14 +173,24 @@ def collect_nga_one_page(npp_id, tid, page):
         print("限制频率")
         return False
 
-    # with open('ae.html', 'wb') as f:
-    #     f.write(text.encode('utf8'))
+    with open('test1.html', 'wb') as f:
+        f.write(text.encode('utf8'))
     # return
     p0 = re.compile(
         r"<span id='posterinfo[^0]\d*' class='posterinfo'>.*?<a href='nuke\.php\?func=ucp&uid=(\d+?)' id='postauthor(\d+).*?title='reply time'>(.*?)</span>.*?<span id='postcontent\d+?' class='postcontent ubbcode'>(.*?)</span>", re.S)
     p1 = re.compile(
         r"<a href='nuke\.php\?func=ucp&uid=(\d+?)' id='postauthor(\d+).*?title='reply time'>(.*?)</span>.*?<p id='postcontent\d+?' class='postcontent ubbcode'>(.*?)</p>", re.S)
+    rp_rp_now = re.compile(r"var __PAGE = {0:'/read\.php\?tid=\d+',1:(\d+),")
+
     items = re.findall(p0, text)
+    # 获得当前页数
+    pages_now = re.findall(rp_rp_now, text)
+    pages_now = pages_now[0] if pages_now else 1
+    print("%s 现在页数为 %s" % (tid, pages_now))
+    generate_nga_page_list_by_collector(tid, pages_now)
+    if special:
+        process_special_first(tid, text)
+        generate_nga_page_list()
     if page <= 1:
         items.extend(re.findall(p1, text))
     # 处理首行
@@ -206,6 +242,8 @@ def collect_nga_one_page(npp_id, tid, page):
         # 处理回复
         insert_data.append((tid, user_id, reply_row, time, reply))
 
+    reply_max = max([x[1] for x in items])
+
     conn, cursor = connect_database()
     # 插入回复
     if insert_data != []:
@@ -235,7 +273,12 @@ def collect_nga_one_page(npp_id, tid, page):
             "insert into nga_reply_img (tid,nga_user_id,reply_sequence,image_url) values (%s,%s,%s,%s)", img_data)
         conn.commit()
     # 更新npp
-    cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where npp_id=%s", [npp_id])
+    if special:
+        cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where tid=%s and page=%s", [tid, page])
+    else:
+        if page < mpg:
+            cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where npp_id=%s", [npp_id])
+    cursor.execute("update nga_post set reply_count=%s where tid=%s", [reply_max, tid])
     conn.commit()
     conn.close()
     return True
@@ -243,13 +286,20 @@ def collect_nga_one_page(npp_id, tid, page):
 
 def collect_nga_one_page_thread():
     while not page_queue.empty():
-        npp_id, tid, page = page_queue.get()
+        npp_id, tid, page, mpg = page_queue.get()
         print(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
-        temp = collect_nga_one_page(npp_id, tid, page)
+        temp = collect_nga_one_page(npp_id, tid, page, mpg)
         if temp:
             time.sleep(4)
         else:
             break
+
+
+def update_tid_reply_get():
+    conn, cursor = connect_database()
+    cursor.execute("update nga_post a set a.reply_get= (select b.mrs from v_mrs b where b.tid=a.tid)")
+    conn.commit()
+    conn.close()
 
 
 page_queue = queue.Queue()
@@ -257,27 +307,18 @@ page_queue = queue.Queue()
 
 def collect_nga_post():
     # TODO 重要帖子优先爬取
+    # TODO 需要考虑爬的时候，当页只有回复数量不够，下一次直接爬第二页了
     # TODO 优化500个回复以上的帖子的抓取逻辑
     conn, cursor = connect_database()
-    # cursor.execute(
-    #     "select tid,reply_get,reply_count from nga_post where is_dead is null and reply_get<reply_count and reply_count <500 order by operate_time desc ")
-    # for i in cursor:
-    #     print("{0}:帖子{1},总计有{2}条，现在抓到{3}条".format(
-    #         str(datetime.now()), str(i[0]), str(i[2]), str(i[1])))
-    #     # return
-    #     min_pages = int(i[1]/20)
-    #     max_pages = int(i[2]/20)+1
-    #     # print(min_pages, max_pages)
-    #     for pg in range(min_pages+1, max_pages+1):
-    #         rs = collect_nga_one_page(i[0], pg, i[1])
-    #         if rs is False:
-    #             return
-    #         time.sleep(5)
+    cursor.execute("select tid,max(page) as mpg from nga_post_page_list group by tid;")
+    temp = cursor.fetchall()
+    temp_max_page = {x[0]: x[1] for x in temp}
+
     cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
 
     temp = cursor.fetchall()
     for i in temp:
-        page_queue.put([i[0], i[1], i[2]])
+        page_queue.put([i[0], i[1], i[2], temp_max_page[i[1]]])
 
     threads = []
     for i in range(5):
@@ -289,3 +330,6 @@ def collect_nga_post():
     # 等待所有线程完成
     for thread in threads:
         thread.join()
+
+    # 更新reply
+    update_tid_reply_get()

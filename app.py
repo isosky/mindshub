@@ -11,7 +11,7 @@ from flask_httpauth import HTTPTokenAuth
 from base import base
 from data_collector import fund_collector
 from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting
-from module import cycling, dft, person, schedule, task, travel, nga_post
+from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting
 
 # TODO import样式统一
 
@@ -436,6 +436,60 @@ def querycity():
     city_lat = json_data['city_lat']
     res = travel.query_city(city_name, city_lon, city_lat)
     return json.dumps(res)
+
+# #####################################
+# 定义nga_setting的函数
+# #####################################
+
+
+@app.route("/get_nga_specia_post")
+@auth.login_required
+def get_nga_specia_post():
+    temp_data = nga_setting.get_nga_specia_post()
+    return json.dumps({"data": temp_data})
+
+
+@app.route("/add_nga_special_post", methods=['POST'])
+@auth.login_required
+def add_nga_special_post():
+    json_data = json.loads(request.get_data())
+    tid = json_data['new_nga_special_post_id']
+    temp_data = nga_setting.add_nga_special_post(tid)
+    return json.dumps({"data": temp_data})
+
+
+@app.route("/delete_nga_special_post", methods=['POST'])
+@auth.login_required
+def delete_nga_special_post():
+    json_data = json.loads(request.get_data())
+    tid = json_data['delete_nga_special_post_id']
+    temp_data = nga_setting.delete_nga_special_post(tid)
+    return json.dumps({"data": temp_data})
+
+
+@app.route("/get_nga_specia_user")
+@auth.login_required
+def get_nga_specia_user():
+    temp_data = nga_setting.get_nga_specia_user()
+    return json.dumps({"data": temp_data})
+
+
+@app.route("/add_nga_special_user", methods=['POST'])
+@auth.login_required
+def add_nga_special_user():
+    json_data = json.loads(request.get_data())
+    nga_user_id = json_data['new_nga_special_user_id']
+    temp_data = nga_setting.add_nga_special_user(nga_user_id)
+    return json.dumps({"data": temp_data})
+
+
+@app.route("/delete_nga_special_user", methods=['POST'])
+@auth.login_required
+def delete_nga_special_user():
+    json_data = json.loads(request.get_data())
+    nga_user_id = json_data['delete_nga_special_user_id']
+    temp_data = nga_setting.delete_nga_special_user(nga_user_id)
+    return json.dumps({"data": temp_data})
 
 
 @ app.route('/getcompany')
@@ -905,7 +959,7 @@ def getdftdir():
 @ app.route('/getposttabledata')
 @auth.login_required
 def getposttabledata():
-    temp = nga_post.getposttabledata()
+    temp = nga_post.get_nga_post_data()
     return json.dumps(temp)
 
 
@@ -914,7 +968,7 @@ def getposttabledata():
 def getreplytabledata():
     json_data = json.loads(request.get_data())
     tid = json_data['tid']
-    temp = nga_post.getreplytabledata(tid)
+    temp = nga_post.get_nga_reply_by_tid(tid)
     return json.dumps(temp)
 
 
