@@ -7,7 +7,7 @@ from datetime import datetime, date
 
 def get_nga_post_data(rowcount=100, offset=0):
     conn, cursor = connect_database(dictionary=True)
-    cursor.execute("select tid from nga_special_post")
+    cursor.execute("select tid from nga_special_post where is_delete=0")
     sdata = cursor.fetchall()
     sdata = {str(x['tid']): '' for x in sdata}
     cursor.execute(
