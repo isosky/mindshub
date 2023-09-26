@@ -173,8 +173,8 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         print("限制频率")
         return False
 
-    with open('test1.html', 'wb') as f:
-        f.write(text.encode('utf8'))
+    # with open('test1.html', 'wb') as f:
+    #     f.write(text.encode('utf8'))
     # return
     p0 = re.compile(
         r"<span id='posterinfo[^0]\d*' class='posterinfo'>.*?<a href='nuke\.php\?func=ucp&uid=(\d+?)' id='postauthor(\d+).*?title='reply time'>(.*?)</span>.*?<span id='postcontent\d+?' class='postcontent ubbcode'>(.*?)</span>", re.S)
