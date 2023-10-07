@@ -209,14 +209,18 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     url_data = []
     img_tid = []
     img_data = []
+    conn, cursor = connect_database()
+    cursor.execute("select reply_sequence from nga_post_reply where tid=%s and page=%s", [tid, page])
+    temp = cursor.fetchall()
+    reply_sequence_exists = {x[0]: '' for x in temp}
 
     for i in items:
         # print(i)
         user_id = i[0]
-        reply_row = i[1]
-        # if int(reply_row) <= now_row:
-        #     # print(reply_row, '跳过')
-        #     continue
+        reply_sequence = i[1]
+        if int(reply_sequence) in reply_sequence_exists:
+            # print(reply_sequence, '跳过')
+            continue
         time = str(i[2])+':00'
         reply = i[3]
         # 处理引用
@@ -224,32 +228,33 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
             temp_quote_user_id = re.findall(r"uid=(\d*?)]", i[3])
             if temp_quote_user_id != []:
                 reply = i[3].split('[/quote]<br/><br/>')[-1]
-                quote_tid.append((temp_quote_user_id[0], tid, reply_row))
+                quote_tid.append((temp_quote_user_id[0], tid, reply_sequence))
         # 处理url
         if '[url]' in i[3]:
             urls = re.findall(r"\[url](\S*?)\[\/url]", i[3])
             # print(urls)
             for url in urls:
-                url_data.append((tid, user_id, reply_row, url))
-            url_tid.append((tid,  reply_row))
+                url_data.append((tid, user_id, reply_sequence, url))
+            url_tid.append((tid,  reply_sequence))
         # 处理图片
         # TODO 多个图片的处理；图片加上前缀
         if '[img]' in i[3]:
             imgs = re.findall(r"\[img\]([^\[]*)\[\/img\]", i[3])
             for img in imgs:
-                img_data.append((tid, user_id, reply_row, img))
-            img_tid.append((tid, reply_row))
+                img_data.append((tid, user_id, reply_sequence, img))
+            img_tid.append((tid, reply_sequence))
         # 处理回复
-        insert_data.append((tid, user_id, reply_row, time, reply))
+        insert_data.append((tid, page, user_id, reply_sequence, time, reply))
 
     reply_max = max([x[1] for x in items])
+    reply_count = len(items)
+    print("%s 本次抓取第%s页，抓到回复%s ，需要插入的回复数量为%s" % (tid, page, reply_count, len(insert_data)))
 
-    conn, cursor = connect_database()
     # 插入回复
     if insert_data != []:
         # max_row = insert_data[-1][2]
         cursor.executemany(
-            "insert into nga_post_reply (tid,nga_user_id,reply_sequence,reply_time,content) values (%s,%s,%s,%s,%s)", insert_data)
+            "insert into nga_post_reply (tid,page,nga_user_id,reply_sequence,reply_time,content) values (%s,%s,%s,%s,%s,%s)", insert_data)
         # cursor.execute("update nga_post set reply_get=%s,operate_time=now() where tid=%s", [
         #     max_row, tid])
         conn.commit()
@@ -274,11 +279,12 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         conn.commit()
     # 更新npp
     if special:
-        cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where tid=%s and page=%s", [tid, page])
+        cursor.execute("update nga_post_page_list set page_status=0,create_time=now(),reply_count=%s where tid=%s and page=%s", [reply_max, tid, page])
     else:
         if page < mpg:
             cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where npp_id=%s", [npp_id])
     cursor.execute("update nga_post set reply_count=%s where tid=%s", [reply_max, tid])
+    cursor.execute("insert into nga_collector_temp (tid,page,reply_count) values (%s,%s,%s)", [tid, page, reply_count])
     conn.commit()
     conn.close()
     return True
@@ -300,6 +306,48 @@ def update_tid_reply_get():
     cursor.execute("update nga_post a set a.reply_get= (select b.mrs from v_mrs b where b.tid=a.tid)")
     conn.commit()
     conn.close()
+
+
+def update_page_status():
+    conn, cursor = connect_database()
+    # Query the database for the collect_time of each page, sorted in descending order
+    query = f"SELECT tid, collect_time FROM nga_collector_temp ORDER BY tid, collect_time DESC"
+    cursor.execute(query)
+    results = cursor.fetchall()
+
+    # Store the third largest collect_time for each page
+    tid_collect_times = {}
+    for result in results:
+        tid = result[0]
+        collect_time = result[1]
+        if tid not in tid_collect_times:
+            tid_collect_times[tid] = []
+        if len(tid_collect_times[tid]) < 3:
+            tid_collect_times[tid].append(collect_time)
+
+    need_delete_row = []
+    # Output the third largest collect_time for each tid
+    for tid, collect_times in tid_collect_times.items():
+        if len(collect_times) >= 3:
+            third_largest_collect_time = collect_times[2]
+            need_delete_row.append([tid, third_largest_collect_time])
+        #     print(f"Third largest collect time for tid {tid}: {third_largest_collect_time}")
+        # else:
+        #     third_largest_collect_time = sorted(collect_times)[-1]
+        #     print(f"Not enough collect_time data for tid {tid} , the last one is :{third_largest_collect_time}")
+    print(need_delete_row)
+    if len(need_delete_row) > 0:
+        print(f"需要更新的页面数据为 {len(need_delete_row)}")
+        cursor.executemany("delete from nga_collector_temp where tid=%s and collect_time<%s", need_delete_row)
+        conn.commit()
+
+    cursor.execute("SELECT tid,page FROM nga_collector_temp group by tid,tid  having count(*)>2 and count(distinct reply_count)=1")
+    temp = cursor.fetchall()
+    if len(temp) > 0:
+        need_check_page_list = [[x[0], x[1]] for x in temp]
+        print(f"需要人工核查的页面数据为 {len(need_check_page_list)}")
+        cursor.executemany("update nga_post_page_list set page_status=3 where tid=%s and page=%s", need_check_page_list)
+        conn.commit()
 
 
 page_queue = queue.Queue()
@@ -333,3 +381,4 @@ def collect_nga_post():
 
     # 更新reply
     update_tid_reply_get()
+    update_page_status()
