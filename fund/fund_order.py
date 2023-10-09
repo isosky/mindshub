@@ -212,7 +212,7 @@ def get_funds_for_cost_update():
 def get_fund_closed_net_value():
     conn, cursor = connect_database()
     cursor.execute(
-        "select fund_code,net_value_date,net_value from fund_net_history where net_value_date>DATE_SUB(now(), INTERVAL 10 DAY)")
+        "select fund_code,net_value_date,net_value from fund_net_history where net_value_date>DATE_SUB(now(), INTERVAL 15 DAY)")
     res = {}
     for i in cursor:
         if i[0] not in res.keys():
