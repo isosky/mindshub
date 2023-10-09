@@ -190,3 +190,24 @@ def judgeneedtogetdata(mt):
         temp_date += datetime.timedelta(days=1)
     conn.close()
     return False
+
+
+def getdatefromsz(mt):
+    month_date = datetime.datetime.strptime(
+        mt, "%Y-%m-%d").strftime("%Y-%m")
+    target_url = "http://www.szse.cn/api/report/exchange/onepersistenthour/monthList?month={}".format(
+        month_date)
+    print('qweqw')
+    req = requests.get(target_url)
+    json_state = json.loads(req.text)
+    print("qweqweqq")
+    temp_trade_date = json_state['data']
+    res = []
+    for i in temp_trade_date:
+        res.append((i['jyrq'], i['jybz'], month_date, i['zrxh']))
+    conn, cursor = connect_database()
+    cursor.executemany(
+        "insert into szdate (jyrq,jybz,mt,zrxh) values (%s,%s,%s,%s)", res)
+    conn.commit()
+    conn.close()
+    print(res)
