@@ -7,9 +7,25 @@ import time
 from datetime import datetime
 import threading
 import queue
+from logging import Formatter, Logger
+from logging.handlers import TimedRotatingFileHandler
+
 
 from base.base import connect_database
 from base.config import get_nga_headers
+
+
+LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
+LOG_FILE = 'nga_collector.log'
+LOG_LEVEL = 'INFO'
+
+
+# 创建按天滚动的文件处理器
+rolling_handler = TimedRotatingFileHandler(LOG_FILE, when='midnight', interval=1)
+rolling_handler.setLevel(LOG_LEVEL)
+rolling_handler.setFormatter(Formatter(LOG_FORMAT))
+logger = Logger('nga')
+logger.addHandler(rolling_handler)
 
 
 def collect_nga_post_list_by_page(page):
@@ -154,14 +170,14 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     t_url = 'https://bbs.nga.cn/read.php?tid=%s&page=%d' % (
         tid, page)
     # print('*' * 10)
-    print('开始抓取：', t_url)
+    logger.info('开始抓取：', t_url)
     # print(t_url)
     # TODO 增加爬取结果的校验
     try:
         text = requests.get(t_url, headers=get_nga_headers()
                             ).content.decode('gbk', 'ignore')
     except Exception as identifier:
-        print(identifier)
+        logger.info(identifier)
         return
     finally:
         pass
@@ -170,7 +186,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     temp_fk_name = re.findall(fk_name, text)
     # 访客限制频率
     if len(temp_fk_name) > 1:
-        print("限制频率")
+        logger.info("限制频率")
         return False
 
     # with open('test1.html', 'wb') as f:
@@ -186,7 +202,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     # 获得当前页数
     pages_now = re.findall(rp_rp_now, text)
     pages_now = pages_now[0] if pages_now else 1
-    print("%s 现在页数为 %s" % (tid, pages_now))
+    logger.info("%s 现在页数为 %s" % (tid, pages_now))
     generate_nga_page_list_by_collector(tid, pages_now)
     if special:
         process_special_first(tid, text)
@@ -245,10 +261,10 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
             img_tid.append((tid, reply_sequence))
         # 处理回复
         insert_data.append((tid, page, user_id, reply_sequence, time, reply))
-
+    print(len(items))
     reply_max = max([x[1] for x in items])
     reply_count = len(items)
-    print("%s 本次抓取第%s页，抓到回复%s ，需要插入的回复数量为%s" % (tid, page, reply_count, len(insert_data)))
+    logger.info("%s 本次抓取第%s页，抓到回复%s ，需要插入的回复数量为%s" % (tid, page, reply_count, len(insert_data)))
 
     # 插入回复
     if insert_data != []:
@@ -293,7 +309,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
 def collect_nga_one_page_thread():
     while not page_queue.empty():
         npp_id, tid, page, mpg = page_queue.get()
-        print(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
+        logger.info(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
         temp = collect_nga_one_page(npp_id, tid, page, mpg)
         if temp:
             time.sleep(4)
@@ -335,17 +351,18 @@ def update_page_status():
         # else:
         #     third_largest_collect_time = sorted(collect_times)[-1]
         #     print(f"Not enough collect_time data for tid {tid} , the last one is :{third_largest_collect_time}")
-    print(need_delete_row)
+    logger.info("需要删除的行的数据如下")
+    logger.info(need_delete_row)
     if len(need_delete_row) > 0:
-        print(f"需要更新的页面数据为 {len(need_delete_row)}")
+        logger.info(f"需要更新的页面数据量为 {len(need_delete_row)}")
         cursor.executemany("delete from nga_collector_temp where tid=%s and collect_time<%s", need_delete_row)
         conn.commit()
 
-    cursor.execute("SELECT tid,page FROM nga_collector_temp group by tid,tid  having count(*)>2 and count(distinct reply_count)=1")
+    cursor.execute("SELECT tid,page FROM nga_collector_temp group by tid,page  having count(*)>2 and count(distinct reply_count)=1")
     temp = cursor.fetchall()
     if len(temp) > 0:
         need_check_page_list = [[x[0], x[1]] for x in temp]
-        print(f"需要人工核查的页面数据为 {len(need_check_page_list)}")
+        logger.info(f"需要人工核查的页面数据量为 {len(need_check_page_list)}")
         cursor.executemany("update nga_post_page_list set page_status=3 where tid=%s and page=%s", need_check_page_list)
         conn.commit()
 
@@ -358,16 +375,17 @@ def collect_nga_post():
     # TODO 需要考虑爬的时候，当页只有回复数量不够，下一次直接爬第二页了
     # TODO 优化500个回复以上的帖子的抓取逻辑
     conn, cursor = connect_database()
+    logger.info("开始抓取nga的回复")
+    logger.info("开始获取帖子列表")
     cursor.execute("select tid,max(page) as mpg from nga_post_page_list group by tid;")
     temp = cursor.fetchall()
     temp_max_page = {x[0]: x[1] for x in temp}
-
-    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
-
+    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 10;")
     temp = cursor.fetchall()
     for i in temp:
         page_queue.put([i[0], i[1], i[2], temp_max_page[i[1]]])
 
+    logger.info("获取帖子列表结束，启动多线程")
     threads = []
     for i in range(5):
         thread = threading.Thread(target=collect_nga_one_page_thread)
@@ -380,5 +398,7 @@ def collect_nga_post():
         thread.join()
 
     # 更新reply
+    logger.info("更新各帖子当前回复数量")
     update_tid_reply_get()
+    logger.info("更新各帖子当前页状态")
     update_page_status()

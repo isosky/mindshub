@@ -45,7 +45,7 @@ def add_buy_order(orderform):
         methods = 'w'
     else:
         methods = 's'
-    print(orderform)
+    # print(orderform)
     cursor.execute("insert into fund_orders (fund_code,fund_name,trade_time,transaction_amount,unit_net_value,order_amount,order_date,transaction_type,transaction_methods,is_fry,remain_volume) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                    [orderform['fund_code'], fund_name, orderform['trade_time'], orderform['fund_shares'],
                     orderform['fund_prices'],  orderform['order_sum'], orderform['check_time'], 1, methods, orderform['isfry'], orderform['fund_shares']])

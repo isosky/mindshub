@@ -12,6 +12,8 @@ from base import base
 from data_collector import fund_collector
 from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting
 from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting
+from logging import Formatter
+from logging.handlers import TimedRotatingFileHandler
 
 # TODO import样式统一
 
@@ -43,6 +45,11 @@ def login():
     json_data = json.loads(request.get_data())
     user_name = json_data['user_name']
     user_pass = json_data['user_pass']
+    app.logger.info('info')
+    app.logger.error('error')
+    app.logger.debug('debug')
+    app.logger.warning('warning')
+    app.logger.critical('critical')
     # print(user_pass)
     if base.login(user_name, user_pass):
         g_tokens['secret-token-1 '+user_name] = user_name
@@ -80,6 +87,7 @@ def add_task():
 @auth.login_required
 def initoption():
     temp = task.init_option()
+    app.logger.info('qweqweqwe')
     return json.dumps({'task_sub_all_option': temp[0], 'task_select_option': temp[1], 'lastchecktime': temp[2], "dir_sub_all_option": temp[3], "dir_select_option": temp[4]})
 
 
@@ -979,7 +987,19 @@ def getreplytabledata():
     return json.dumps(temp)
 
 
+LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
+LOG_FILE = 'app.log'
+LOG_LEVEL = 'INFO'
+
+
+# 创建按天滚动的文件处理器
+rolling_handler = TimedRotatingFileHandler(LOG_FILE, when='midnight', interval=1)
+rolling_handler.setLevel(LOG_LEVEL)
+rolling_handler.setFormatter(Formatter(LOG_FORMAT))
+
+
 if __name__ == '__main__':
     # ls.getlocksreen()
     # TODO 使用logging模块
+    app.logger.addHandler(rolling_handler)
     app.run(host='0.0.0.0', port=5000, debug=True)
