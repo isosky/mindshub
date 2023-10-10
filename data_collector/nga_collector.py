@@ -391,8 +391,9 @@ def collect_nga_post():
     cursor.execute("select tid,max(page) as mpg from nga_post_page_list group by tid;")
     temp = cursor.fetchall()
     temp_max_page = {x[0]: x[1] for x in temp}
-    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 10;")
+    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
     temp = cursor.fetchall()
+    logger.info(f"本次抓取长度为：{len(temp)}")
     for i in temp:
         page_queue.put([i[0], i[1], i[2], temp_max_page[i[1]]])
 
