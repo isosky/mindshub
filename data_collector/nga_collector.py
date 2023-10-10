@@ -186,7 +186,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     temp_fk_name = re.findall(fk_name, text)
     # 访客限制频率
     if len(temp_fk_name) > 1:
-        logger.info("限制频率")
+        logger.error("限制频率")
         return False
 
     yc_name = re.compile(r"帖子被设为隐藏", re.S)
