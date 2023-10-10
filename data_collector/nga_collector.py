@@ -175,7 +175,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         text = requests.get(t_url, headers=get_nga_headers()
                             ).content.decode('gbk', 'ignore')
     except Exception as identifier:
-        logger.info(identifier)
+        logger.error(identifier)
         return
     finally:
         pass
@@ -321,7 +321,7 @@ def collect_nga_one_page_thread():
     while not page_queue.empty():
         npp_id, tid, page, mpg = page_queue.get()
         logger.info(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
-        logger.info(f"剩余长度为{len(page_queue)}")
+        logger.info(f"剩余长度为{page_queue.qsize}")
         temp = collect_nga_one_page(npp_id, tid, page, mpg)
         if temp:
             time.sleep(4)
