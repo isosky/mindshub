@@ -16,7 +16,7 @@ from base.config import get_nga_headers
 
 
 LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
-LOG_FILE = 'nga_collector.log'
+LOG_FILE = 'logs/nga_collector.log'
 LOG_LEVEL = 'INFO'
 
 
