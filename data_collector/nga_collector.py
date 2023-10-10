@@ -169,7 +169,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     '''
     t_url = 'https://bbs.nga.cn/read.php?tid=%s&page=%d' % (
         tid, page)
-    logger.info('开始抓取：', t_url)
+    logger.info(f'开始抓取：{t_url}')
     # TODO 增加爬取结果的校验
     try:
         text = requests.get(t_url, headers=get_nga_headers()
@@ -180,11 +180,23 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     finally:
         pass
 
+    conn, cursor = connect_database()
+
     fk_name = re.compile(r"访客不能直接访问", re.S)
     temp_fk_name = re.findall(fk_name, text)
     # 访客限制频率
     if len(temp_fk_name) > 1:
         logger.info("限制频率")
+        return False
+
+    yc_name = re.compile(r"帖子被设为隐藏", re.S)
+    temp_yc_name = re.findall(yc_name, text)
+    # 访客限制频率
+    if len(temp_yc_name) > 1:
+        logger.info(f"{tid} , {page} 帖子被设为隐藏")
+        cursor.execute("update nga_post_page_list set page_status=4,create_time=now() where tid=%s and page=%s", [tid, page])
+        conn.commit()
+        conn.close()
         return False
 
     # with open('test1.html', 'wb') as f:
@@ -223,7 +235,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     url_data = []
     img_tid = []
     img_data = []
-    conn, cursor = connect_database()
+
     cursor.execute("select reply_sequence from nga_post_reply where tid=%s and page=%s", [tid, page])
     temp = cursor.fetchall()
     reply_sequence_exists = {x[0]: '' for x in temp}
