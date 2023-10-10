@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from base.base import connect_database
+from datetime import date, datetime
 import math
 import json
 
@@ -212,3 +213,48 @@ def get_fund_treemap_label():
     #     conn.commit()
     conn.close()
     return res_treemap_data
+
+
+def get_fund_review(reviewform, getoneday=False):
+    conn, cursor = connect_database(dictionary=True)
+    # print(reviewform['fund_review_time'])
+    cursor.execute("select *  from fund_review where fund_code=%s and fund_review_time=%s",
+                   [reviewform['fund_code'], reviewform['fund_review_time']])
+    temp = cursor.fetchone()
+    if not temp:
+        conn.close()
+        return temp
+    for k, v in temp.items():
+        if isinstance(v, date):
+            temp[k] = v.strftime('%Y-%m-%d')
+        if isinstance(v, datetime):
+            temp[k] = v.strftime('%Y-%m-%d %H:%M:%S')
+    conn.close()
+    return temp
+
+
+def add_fund_review(reviewform, update=False):
+    conn, cursor = connect_database()
+    # TODO 历史得先不管
+    # cursor.execute("insert into fund_review_his (fr_id_old,fund_code,fund_name,fund_review_time,fund_review,fund_review_attitude,funder_id,operation,fund_label) select fr_id,fund_code,fund_name,fund_review_time,fund_review,fund_review_attitude,funder_id,user_name,operation,fund_label from fund_review where fund_code=%s and fund_review_time=%s",
+    #                [reviewform['fund_code'], reviewform['fund_review_time']])
+    # conn.commit()
+    if "funder_id" not in reviewform.keys():
+        funder_id = 1
+    else:
+        funder_id = reviewform['funder_id']
+    if update:
+        cursor.execute("update fund_review set fund_review_attitude=%s,fund_review=%s,operation=%s,fund_label=%s where fr_id=%s", [
+            reviewform['fund_review_attitude'], reviewform['fund_review'], reviewform['operation'],  reviewform['fund_label'], reviewform['fr_id']])
+        conn.commit()
+        conn.close()
+        return 200
+    cursor.execute("delete from fund_review where fund_code=%s and fund_review_time=%s and funder_id=%s",
+                   [reviewform['fund_code'], reviewform['fund_review_time'], funder_id])
+    conn.commit()
+    cursor.execute("insert into fund_review (fund_code,fund_name,fund_review_time,fund_review_attitude,fund_review,funder_id,operation,fund_label) values (%s,%s,%s,%s,%s,%s,%s,%s)",
+                   [reviewform['fund_code'], reviewform['fund_name'], reviewform['fund_review_time'], reviewform['fund_review_attitude'],
+                    reviewform['fund_review'], funder_id,  reviewform['operation'], reviewform['fund_label']])
+    conn.commit()
+    conn.close()
+    return 200

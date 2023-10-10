@@ -45,11 +45,6 @@ def login():
     json_data = json.loads(request.get_data())
     user_name = json_data['user_name']
     user_pass = json_data['user_pass']
-    app.logger.info('info')
-    app.logger.error('error')
-    app.logger.debug('debug')
-    app.logger.warning('warning')
-    app.logger.critical('critical')
     # print(user_pass)
     if base.login(user_name, user_pass):
         g_tokens['secret-token-1 '+user_name] = user_name
@@ -87,7 +82,6 @@ def add_task():
 @auth.login_required
 def initoption():
     temp = task.init_option()
-    app.logger.info('qweqweqwe')
     return json.dumps({'task_sub_all_option': temp[0], 'task_select_option': temp[1], 'lastchecktime': temp[2], "dir_sub_all_option": temp[3], "dir_select_option": temp[4]})
 
 
@@ -726,6 +720,31 @@ async def getestimatebuydata():
 # #####################################
 
 
+@ app.route('/get_fund_review', methods=['POST'])
+@auth.login_required
+def get_fund_review():
+    json_data = json.loads(request.get_data())
+    reviewform = json_data['reviewform']
+    oneday = json_data['reviewform']
+    temp = fund_total.get_fund_review(reviewform, getoneday=oneday)
+    if temp:
+        return json.dumps({"response_code": 200, 'res': temp})
+    else:
+        return json.dumps({"response_code": 404, "res": temp})
+
+
+@ app.route('/add_fund_review', methods=['POST'])
+@auth.login_required
+def add_fund_review():
+    json_data = json.loads(request.get_data())
+    reviewform = json_data['reviewform']
+    if "isupdate" in json_data.keys():
+        temp = fund_total.add_fund_review(reviewform, True)
+        return json.dumps({'res': temp})
+    temp = fund_total.add_fund_review(reviewform)
+    return json.dumps({'res': temp})
+
+
 @ app.route('/get_fund_total_data')
 @auth.login_required
 def get_fund_total_data():
@@ -988,7 +1007,7 @@ def getreplytabledata():
 
 
 LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
-LOG_FILE = 'app.log'
+LOG_FILE = 'logs/app.log'
 LOG_LEVEL = 'INFO'
 
 
