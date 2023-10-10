@@ -197,7 +197,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         cursor.execute("update nga_post_page_list set page_status=4,create_time=now() where tid=%s and page=%s", [tid, page])
         conn.commit()
         conn.close()
-        return False
+        return True
 
     # with open('test1.html', 'wb') as f:
     #     f.write(text.encode('utf8'))
@@ -321,6 +321,7 @@ def collect_nga_one_page_thread():
     while not page_queue.empty():
         npp_id, tid, page, mpg = page_queue.get()
         logger.info(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
+        logger.info(f"剩余长度为{len(page_queue)}")
         temp = collect_nga_one_page(npp_id, tid, page, mpg)
         if temp:
             time.sleep(4)
