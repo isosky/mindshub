@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 import threading
 import queue
-from logging import Formatter, Logger
+from logging import Formatter, Logger, StreamHandler
 from logging.handlers import TimedRotatingFileHandler
 
 
@@ -24,19 +24,22 @@ LOG_LEVEL = 'INFO'
 rolling_handler = TimedRotatingFileHandler(LOG_FILE, when='midnight', interval=1)
 rolling_handler.setLevel(LOG_LEVEL)
 rolling_handler.setFormatter(Formatter(LOG_FORMAT))
+stream_handler = StreamHandler()
+stream_handler.setLevel(LOG_LEVEL)
 logger = Logger('nga')
 logger.addHandler(rolling_handler)
+logger.addHandler(stream_handler)
 
 
 def collect_nga_post_list_by_page(page):
     page_url = 'https://bbs.nga.cn/thread.php?fid=706&page=%d' % (page)
-    print(page_url)
+    logger.info(page_url)
     text = requests.get(page_url, headers=get_nga_headers()
                         ).content.decode('gbk', 'ignore')
     with open('qqww.html', 'wb') as f:
         f.write(text.encode('utf8'))
     # return
-    # print("*" * 10)
+    # logger.info("*" * 10)
     pl = re.compile(r"<td class='c1'><a id='t_rc\d_\d*' title='打开新窗口' href='\/read.php\?tid=(\d*)'.*?(\d*)<\/a><\/td>.*?class='topic'>(.*?)</a>(.*?)a href='\/nuke.php\?func=ucp&uid=(\d*)", re.S)
     # ps = re.compile(r"class='silver'>(.*?)</a>", re.S)
     # ['24936998', '99', '[单机向]挂机/放置游戏整理和推荐(更新各游戏图片预览)', '60061086', '游戏综合讨论']
@@ -44,7 +47,7 @@ def collect_nga_post_list_by_page(page):
     temp_items = re.findall(pl, text)
     if temp_items:
         items = [list(x) for x in temp_items]
-        # print(items)
+        # logger.info(items)
         for i in items:
             del (i[3])
         return items
@@ -53,12 +56,12 @@ def collect_nga_post_list_by_page(page):
 
 
 def collect_nga_post_list():
-    print("开始获取nga帖子列表")
+    logger.info("开始获取nga帖子列表")
     conn, cursor = connect_database()
     cursor.execute(
         "select tid,reply_get from nga_post where is_dead is null")
     temp_nowdata = cursor.fetchall()
-    # print(temp_nowdata)
+    # logger.info(temp_nowdata)
     nowdata = {}
     if temp_nowdata != []:
         for i in temp_nowdata:
@@ -70,7 +73,7 @@ def collect_nga_post_list():
         tempdata = collect_nga_post_list_by_page(pg)
         time.sleep(2)
         if tempdata is None:
-            print("page %s 没获得数据,请检查" % (pg))
+            logger.info("page %s 没获得数据,请检查" % (pg))
             continue
         for i in tempdata:
             if i[0] in nowdata:
@@ -79,8 +82,8 @@ def collect_nga_post_list():
             else:
                 insert_data.append(tuple(i))
     # last在数据库中设置为-1
-    print("需要更新得帖子数量为：%s" % (len(update_data)))
-    print("需要插入得帖子数量为：%s" % (len(insert_data)))
+    logger.info("需要更新得帖子数量为：%s" % (len(update_data)))
+    logger.info("需要插入得帖子数量为：%s" % (len(insert_data)))
     cursor.executemany("update nga_post set reply_count=%s where tid=%s", update_data)
     cursor.executemany(
         "update nga_post set operate_time = now() where tid = %s", update_id)
@@ -88,7 +91,7 @@ def collect_nga_post_list():
     cursor.executemany(
         "insert into nga_post (tid,reply_count,post_name,nga_user_id,operate_time,fid,reply_get) values (%s,%s,%s,%s,now(),7,-1)", insert_data)
     conn.commit()
-    print("开始生成page列表")
+    logger.info("开始生成page列表")
     generate_nga_page_list()
     conn.close()
 
@@ -104,16 +107,13 @@ def generate_nga_page_list():
     temp_data = []
     for i in temp_list:
         max_pages = int(i[1]/20)+1
-        # print(min_pages, max_pages)
-        # print("*"*10)
-        # print(i[0], i[1])
         if i[0] not in temp_exists_page:
             for pg in range(1, max_pages+1):
                 temp_data.append([i[0], pg])
         else:
             for pg in range(temp_exists_page[i[0]]+1, max_pages+1):
                 temp_data.append([i[0], pg])
-    print("需要更新page数量为：%s" % (len(temp_data)))
+    logger.info("需要更新page数量为：%s" % (len(temp_data)))
     cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
     conn.commit()
     conn.close()
@@ -128,7 +128,7 @@ def generate_nga_page_list_by_collector(tid, page_now):
     temp_data = []
     for pg in range(temp_exists_page+1, int(page_now)+1):
         temp_data.append([tid, pg])
-    print("需要更新page数量为：%s" % (len(temp_data)))
+    logger.info("需要更新page数量为：%s" % (len(temp_data)))
     cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
     conn.commit()
     conn.close()
@@ -141,13 +141,13 @@ def add_nga_user(user_data):
     cursor.execute("select nga_user_id from nga_user")
     users = cursor.fetchall()
     exists = {str(x[0]): '' for x in users}
-    # print(exists)
+    # logger.info(exists)
     todo = [x for x in user_data if x[0] not in exists]
     if len(todo) > 0:
         cursor.executemany(
             "insert into nga_user (nga_user_id,nga_user_name) values (%s,%s)", todo)
         conn.commit()
-    print("共"+str(len(user_data))+'个用户，新增'+str(len(todo))+'个用户')
+    logger.info("共"+str(len(user_data))+'个用户，新增'+str(len(todo))+'个用户')
     conn.close()
 
 
@@ -155,7 +155,7 @@ def process_special_first(tid, text):
     conn, cursor = connect_database()
     re_uid = re.compile(r"<a href='nuke\.php\?func=ucp&uid=(\d*)'.*<h3 id='postsubject0'>(.*?)</h3><br/>", re.S)
     nga_user_id, post_name = re.findall(re_uid, text)[0]
-    print("%s 是 %s 发的，贴名为 %s" % (tid, nga_user_id, post_name))
+    logger.info("%s 是 %s 发的，贴名为 %s" % (tid, nga_user_id, post_name))
     cursor.execute(
         "insert into nga_post (tid,reply_count,post_name,nga_user_id,operate_time,fid,reply_get) values (%s,%s,%s,%s,now(),7,-1)", [tid, -1, post_name, nga_user_id])
     conn.commit()
@@ -169,9 +169,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     '''
     t_url = 'https://bbs.nga.cn/read.php?tid=%s&page=%d' % (
         tid, page)
-    # print('*' * 10)
     logger.info('开始抓取：', t_url)
-    # print(t_url)
     # TODO 增加爬取结果的校验
     try:
         text = requests.get(t_url, headers=get_nga_headers()
@@ -218,7 +216,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     if len(users) > 0:
         add_nga_user(users)
 
-    # print("帖子id:", tid, ',第', page, '页,共有:', len(items), '条')
+    # logger.info("帖子id:", tid, ',第', page, '页,共有:', len(items), '条')
     quote_tid = []
     insert_data = []
     url_tid = []
@@ -231,11 +229,9 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     reply_sequence_exists = {x[0]: '' for x in temp}
 
     for i in items:
-        # print(i)
         user_id = i[0]
         reply_sequence = i[1]
         if int(reply_sequence) in reply_sequence_exists:
-            # print(reply_sequence, '跳过')
             continue
         time = str(i[2])+':00'
         reply = i[3]
@@ -248,7 +244,6 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         # 处理url
         if '[url]' in i[3]:
             urls = re.findall(r"\[url](\S*?)\[\/url]", i[3])
-            # print(urls)
             for url in urls:
                 url_data.append((tid, user_id, reply_sequence, url))
             url_tid.append((tid,  reply_sequence))
@@ -261,7 +256,11 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
             img_tid.append((tid, reply_sequence))
         # 处理回复
         insert_data.append((tid, page, user_id, reply_sequence, time, reply))
-    print(len(items))
+
+    logger.info(len(items))
+    if len(items) == 0:
+        logger.info(f"tid {tid} 没回复")
+        return
     reply_max = max([x[1] for x in items])
     reply_count = len(items)
     logger.info("%s 本次抓取第%s页，抓到回复%s ，需要插入的回复数量为%s" % (tid, page, reply_count, len(insert_data)))
@@ -347,10 +346,10 @@ def update_page_status():
         if len(collect_times) >= 3:
             third_largest_collect_time = collect_times[2]
             need_delete_row.append([tid, third_largest_collect_time])
-        #     print(f"Third largest collect time for tid {tid}: {third_largest_collect_time}")
+        #     logger.info(f"Third largest collect time for tid {tid}: {third_largest_collect_time}")
         # else:
         #     third_largest_collect_time = sorted(collect_times)[-1]
-        #     print(f"Not enough collect_time data for tid {tid} , the last one is :{third_largest_collect_time}")
+        #     logger.info(f"Not enough collect_time data for tid {tid} , the last one is :{third_largest_collect_time}")
     logger.info("需要删除的行的数据如下")
     logger.info(need_delete_row)
     if len(need_delete_row) > 0:
