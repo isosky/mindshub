@@ -16,7 +16,7 @@ from base.config import get_nga_headers
 
 
 LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
-LOG_FILE = 'nga_collector.log'
+LOG_FILE = 'logs/nga_collector.log'
 LOG_LEVEL = 'INFO'
 
 
@@ -175,7 +175,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         text = requests.get(t_url, headers=get_nga_headers()
                             ).content.decode('gbk', 'ignore')
     except Exception as identifier:
-        logger.info(identifier)
+        logger.error(identifier)
         return
     finally:
         pass
@@ -186,7 +186,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     temp_fk_name = re.findall(fk_name, text)
     # 访客限制频率
     if len(temp_fk_name) > 1:
-        logger.info("限制频率")
+        logger.error("限制频率")
         return False
 
     yc_name = re.compile(r"帖子被设为隐藏", re.S)
@@ -197,7 +197,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         cursor.execute("update nga_post_page_list set page_status=4,create_time=now() where tid=%s and page=%s", [tid, page])
         conn.commit()
         conn.close()
-        return False
+        return True
 
     # with open('test1.html', 'wb') as f:
     #     f.write(text.encode('utf8'))
@@ -321,6 +321,7 @@ def collect_nga_one_page_thread():
     while not page_queue.empty():
         npp_id, tid, page, mpg = page_queue.get()
         logger.info(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
+        logger.info(f"剩余长度为{page_queue.qsize()}")
         temp = collect_nga_one_page(npp_id, tid, page, mpg)
         if temp:
             time.sleep(4)
@@ -391,8 +392,9 @@ def collect_nga_post():
     cursor.execute("select tid,max(page) as mpg from nga_post_page_list group by tid;")
     temp = cursor.fetchall()
     temp_max_page = {x[0]: x[1] for x in temp}
-    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 10;")
+    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
     temp = cursor.fetchall()
+    logger.info(f"本次抓取长度为：{len(temp)}")
     for i in temp:
         page_queue.put([i[0], i[1], i[2], temp_max_page[i[1]]])
 
