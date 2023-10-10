@@ -110,3 +110,6 @@ config.py
 *dbconn.py
 function*txt
 *.html
+server*.py
+func_*.py
+*.log.*
