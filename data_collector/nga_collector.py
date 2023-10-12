@@ -156,6 +156,12 @@ def process_special_first(tid, text):
     re_uid = re.compile(r"<a href='nuke\.php\?func=ucp&uid=(\d*)'.*<h3 id='postsubject0'>(.*?)</h3><br/>", re.S)
     nga_user_id, post_name = re.findall(re_uid, text)[0]
     logger.info("%s 是 %s 发的，贴名为 %s" % (tid, nga_user_id, post_name))
+    cursor.execute("select count(*) from nga_post where tid=%s", (tid))
+    temp = cursor.fetchone()[0]
+    if temp > 0:
+        logger.info(f"{tid} 已经添加过")
+        conn.close()
+        return
     cursor.execute(
         "insert into nga_post (tid,reply_count,post_name,nga_user_id,operate_time,fid,reply_get) values (%s,%s,%s,%s,now(),7,-1)", [tid, -1, post_name, nga_user_id])
     conn.commit()
@@ -275,7 +281,7 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         return
     reply_max = max([x[1] for x in items])
     reply_count = len(items)
-    logger.info("%s 本次抓取第%s页，抓到回复%s ，需要插入的回复数量为%s" % (tid, page, reply_count, len(insert_data)))
+    logger.info(f"{tid} 本次抓取第{page}页，抓到回复{reply_count} ，需要插入的回复数量为{len(insert_data)}")
 
     # 插入回复
     if insert_data != []:
