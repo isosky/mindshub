@@ -156,7 +156,7 @@ def process_special_first(tid, text):
     re_uid = re.compile(r"<a href='nuke\.php\?func=ucp&uid=(\d*)'.*<h3 id='postsubject0'>(.*?)</h3><br/>", re.S)
     nga_user_id, post_name = re.findall(re_uid, text)[0]
     logger.info("%s 是 %s 发的，贴名为 %s" % (tid, nga_user_id, post_name))
-    cursor.execute("select count(*) from nga_post where tid=%s", (tid))
+    cursor.execute("select count(*) from nga_post where tid=%s", [tid])
     temp = cursor.fetchone()[0]
     if temp > 0:
         logger.info(f"{tid} 已经添加过")
