@@ -111,8 +111,6 @@ def get_fund_remain_detail(fund_code):
     return res
 
 
-# get_remain_chart_data_by_fund_code
-
 def get_fund_total_chart_data(fund_code):
     conn, cursor = connect_database()
     xaxisdata = []

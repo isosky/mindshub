@@ -56,7 +56,7 @@ def add_new_label(new_label):
 
 def get_fund_base_label():
     conn, cursor = connect_database()
-    cursor.execute("select distinct fund_label from  fund_label ")
+    cursor.execute("select distinct fund_label from fund_label ")
     res = []
     res_option = []
     for i in cursor:

@@ -10,7 +10,7 @@ from flask_httpauth import HTTPTokenAuth
 
 from base import base
 from data_collector import fund_collector
-from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting
+from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting, fund_review
 from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting
 from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
@@ -792,8 +792,71 @@ def get_fund_treemap_label():
 
 
 # #####################################
+# 定义fund_review的函数
+# #####################################
+
+
+@ app.route('/getfundcalendar', methods=['POST'])
+@auth.login_required
+def getfundcalendar():
+    json_data = json.loads(request.get_data())
+
+    mode = json_data['mode']
+    if mode == 'fund':
+        fund_code = json_data['fund_code']
+        temp, temp1, sform = fund_review.getfundcalendar(fund_code)
+        return json.dumps({'data': temp, 'bs_data': temp1, "sform": sform})
+    if mode == 'author':
+        temp, temp1, sform = fund_review.getfundcalendarbyauthor()
+        return json.dumps({'data': temp, 'bs_data': temp1, "sform": sform})
+
+
+@ app.route('/getreviewtabledata', methods=['POST'])
+@auth.login_required
+def getreviewtabledata():
+    json_data = json.loads(request.get_data())
+    fund_code = json_data['fund_code']
+    fund_review_time = json_data['fund_review_time']
+    temp = fund_review.getreviewtabledata(fund_code, fund_review_time)
+    return json.dumps(temp)
+
+
+@ app.route('/getfunder')
+@auth.login_required
+def getfunder():
+    temp, temp_list = fund_review.getfunder()
+    return json.dumps({"data": temp, "data_list": temp_list})
+
+
+@ app.route('/getfundlabel')
+@auth.login_required
+def getfundlabel():
+    temp = fund_review.getfundlabel()
+    return json.dumps(temp)
+
+
+@ app.route('/commitfunderreview', methods=['POST'])
+@auth.login_required
+def commitfunderreview():
+    json_data = json.loads(request.get_data())
+    funderreviewform = json_data['funderreviewform']
+    temp = fund_review.commitfunderreview(funderreviewform)
+    return json.dumps({'res': temp})
+
+
+@ app.route('/getfunderreview', methods=['POST'])
+@auth.login_required
+def getfunderreview():
+    json_data = json.loads(request.get_data())
+    funder_id = json_data['funder_id']
+    temp = fund_review.getfunderreview(funder_id)
+    return json.dumps(temp)
+
+
+# #####################################
 # 定义fishtang的函数
 # #####################################
+
 
 @ app.route('/get_fund_base_label')
 @auth.login_required
