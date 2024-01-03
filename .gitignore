@@ -113,3 +113,5 @@ function*txt
 server*.py
 func_*.py
 *.log.*
+base/bili_cookies.py
+temp_data/i141958_activities.csv
