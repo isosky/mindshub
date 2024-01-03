@@ -188,7 +188,7 @@ def inserttid(tid, s, e, tname):
 def updatetid(tid, s, e):
     conn, cursor = connect_database()
     cursor.execute(
-        "update nga_img_tid set reply_count=%s,reply_get=%s,datetime=now() where tid=%s", [s, e, tid])
+        "update nga_img_tid set reply_count=%s,reply_get=%s,create_time=now() where tid=%s", [s, e, tid])
     conn.commit()
     conn.close()
 
@@ -196,7 +196,7 @@ def updatetid(tid, s, e):
 def updateoverdatetid(tid):
     conn, cursor = connect_database()
     cursor.execute(
-        "update nga_img_tid set is_dead=1,datetime=now() where tid=%s", [tid])
+        "update nga_img_tid set is_dead=1,create_time=now() where tid=%s", [tid])
     conn.commit()
     conn.close()
 
@@ -234,7 +234,7 @@ def getpages(tid):
 def calall():
     conn, cursor = connect_database()
     cursor.execute(
-        "select tid from nga_img_tid where is_dead is null and datetime<DATE_SUB(NOW(), INTERVAL 120 MINUTE) order by id desc")
+        "select tid from nga_img_tid where is_dead is null and create_time<DATE_SUB(NOW(), INTERVAL 120 MINUTE) order by id desc")
     for i in cursor:
         if is_fk == 0:
             gettid(i[0])
