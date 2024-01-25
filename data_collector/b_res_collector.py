@@ -110,7 +110,7 @@ def get_parms(userid="", pcursor=1, keyword=""):
     return response.json()
 
 
-def parserresult(userId, temp):
+def parserresult(userId, user_name, temp):
     # todo 判断
     temp_res = temp['data']['list']['vlist']
     print(f'数据长度为：{len(temp_res)}')
@@ -123,23 +123,26 @@ def parserresult(userId, temp):
         for i in temp_res:
             if i['aid'] in exists:
                 continue
-            res.append([userId, i['title'], i['aid'], i['bvid'], i['typeid'], i['created'], i['length']])
+            res.append([userId, user_name, i['title'], i['aid'], i['bvid'], i['typeid'], i['created'], i['length']])
         print(f'需要插入的长度为：{len(res)}')
         if len(res) > 0:
-            cursor.executemany("insert into bili_vedio (author_id,title,aid,bvid,typeid,created,length)  values (%s,%s,%s,%s,%s,%s,%s)", res)
+            cursor.executemany("insert into bili_vedio (author_id,author_name,title,aid,bvid,typeid,created,length)  values (%s,%s,%s,%s,%s,%s,%s,%s)", res)
             conn.commit()
             conn.close()
-            return True
+            if len(res) == 30:
+                return True
+            else:
+                return False
         else:
             return False
     else:
         return False
 
 
-def getap(userid):
+def getap(userid, user_name):
     p = 1
     while True:
-        print(f'开始获取 {userid} 的第 {p} 页')
+        print(f'开始获取 {user_name} 的第 {p} 页')
         temp = get_parms(userid=userid, pcursor=p, keyword='')
         if temp['code'] > 1:
             print(temp)
@@ -147,19 +150,24 @@ def getap(userid):
         if temp['code'] == -352:
             print("需要更换cookie")
             return False
-        if not parserresult(userid, temp):
+        if not parserresult(userid, user_name, temp):
             break
         time.sleep(5)
         p += 1
+    time.sleep(2)
     return True
 
 
 def bili_get_all():
     conn, cursor = connect_database()
-    cursor.execute("select author_id from bili_author")
-    for i in cursor:
-        getap(i[0])
+    cursor.execute("select author_id,author_name from bili_author WHERE last_get_time <= (NOW() - INTERVAL 6 HOUR) or last_get_time is null ;")
+    temp = cursor.fetchall()
+    for i in temp:
+        if getap(i[0], i[1]):
+            cursor.execute("update bili_author set last_get_time= NOW()")
+            conn.commit()
         time.sleep(3)
+    conn.close()
 
 
 if __name__ == '__main__':
