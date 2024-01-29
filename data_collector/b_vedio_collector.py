@@ -1,3 +1,4 @@
+from moviepy.editor import VideoFileClip
 import os
 import yt_dlp
 from base.base import connect_database
@@ -60,24 +61,43 @@ def bili_check_file():
 
                 # 确保是文件
                 if os.path.isfile(file_path):
+                    # TODO 对帧率进行处理
+                    frame_rate, width, height = get_frame_rate(file_path)
                     bvid = file_name.split('-')[0]
-                    result[folder_name+'_'+bvid] = ''
+                    result[folder_name+'|_'+bvid] = width*height
 
     conn, cursor = connect_database()
-    cursor.execute("select author_name,bvid from bili_vedio where is_collect=1")
+    cursor.execute("select author_name,bvid,frame_info from bili_vedio where is_collect=1")
     all_result = {}
     for i in cursor:
-        all_result[i[0]+'_'+i[1]] = ''
+        all_result[i[0]+'|_'+i[1]] = i[2]
 
     not_exists = {key: value for key, value in all_result.items() if key not in result}
 
-    not_exists = [x.split('_') for x in not_exists]
+    exists = {key: value for key, value in all_result.items() if key in result}
+
+    low_frame = [key.split('|_').extend(value) for key, value in exists.items() if value < result[key]]
+
+    not_exists = [x.split('|_') for x in not_exists]
 
     print(f'需要重新下载得视频数量为 {len(not_exists)}')
     if not_exists:
         cursor.executemany("update bili_vedio set is_collect=0 where author_name=%s and bvid=%s", not_exists)
-
         conn.commit()
+    # if low_frame:
+
     conn.close()
 
     return result
+
+
+def get_frame_rate(video_path):
+    try:
+        video_clip = VideoFileClip(video_path)
+        frame_rate = video_clip.fps
+        width, height = video_clip.size
+        video_clip.close()
+        return frame_rate, width, height
+    except Exception as e:
+        print(f"Error: {e}")
+        return None

@@ -166,6 +166,9 @@ def bili_get_all():
         if getap(i[0], i[1]):
             cursor.execute("update bili_author set last_get_time= NOW()")
             conn.commit()
+        else:
+            conn.close()
+            return False
         time.sleep(3)
     conn.close()
 
