@@ -91,6 +91,7 @@ def init_travel():
             from_city, to_city = temp_travel.split('→')
             if from_city not in city_datas.keys() or to_city not in city_datas.keys():
                 msg = '有城市不存在'
+                return msg
             else:
                 msg = 'kk'
             temp_datas.append(tuple([i[0], from_city, city_datas[from_city]['lon'], city_datas[from_city]['lat'],
@@ -123,7 +124,8 @@ def add_city(city, lon, lat):
     # print(temp, city)
     if temp:
         return "city is already exists"
-    cursor.execute("insert into base_city_geo values (%s,%s,%s)", [city, lon, lat])
+    cursor.execute("insert into base_city_geo values (%s,%s,%s)", [
+                   city, lon, lat])
     conn.commit()
     conn.close()
     return True

@@ -21,7 +21,8 @@ LOG_LEVEL = 'INFO'
 
 
 # 创建按天滚动的文件处理器
-rolling_handler = TimedRotatingFileHandler(LOG_FILE, when='midnight', interval=1)
+rolling_handler = TimedRotatingFileHandler(
+    LOG_FILE, when='midnight', interval=1)
 rolling_handler.setLevel(LOG_LEVEL)
 rolling_handler.setFormatter(Formatter(LOG_FORMAT))
 stream_handler = StreamHandler()
@@ -36,8 +37,8 @@ def collect_nga_post_list_by_page(page):
     logger.info(page_url)
     text = requests.get(page_url, headers=get_nga_headers()
                         ).content.decode('gbk', 'ignore')
-    with open('qqww.html', 'wb') as f:
-        f.write(text.encode('utf8'))
+    # with open('qqww.html', 'wb') as f:
+    #     f.write(text.encode('utf8'))
     # return
     # logger.info("*" * 10)
     pl = re.compile(r"<td class='c1'><a id='t_rc\d_\d*' title='打开新窗口' href='\/read.php\?tid=(\d*)'.*?(\d*)<\/a><\/td>.*?class='topic'>(.*?)</a>(.*?)a href='\/nuke.php\?func=ucp&uid=(\d*)", re.S)
@@ -84,7 +85,8 @@ def collect_nga_post_list():
     # last在数据库中设置为-1
     logger.info("需要更新得帖子数量为：%s" % (len(update_data)))
     logger.info("需要插入得帖子数量为：%s" % (len(insert_data)))
-    cursor.executemany("update nga_post set reply_count=%s where tid=%s", update_data)
+    cursor.executemany(
+        "update nga_post set reply_count=%s where tid=%s", update_data)
     cursor.executemany(
         "update nga_post set operate_time = now() where tid = %s", update_id)
     conn.commit()
@@ -114,14 +116,16 @@ def generate_nga_page_list():
             for pg in range(temp_exists_page[i[0]]+1, max_pages+1):
                 temp_data.append([i[0], pg])
     logger.info("需要更新page数量为：%s" % (len(temp_data)))
-    cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
+    cursor.executemany(
+        "insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
     conn.commit()
     conn.close()
 
 
 def generate_nga_page_list_by_collector(tid, page_now):
     conn, cursor = connect_database()
-    cursor.execute("select max(page) from nga_post_page_list where tid=%s ", [tid])
+    cursor.execute(
+        "select max(page) from nga_post_page_list where tid=%s ", [tid])
     temp_exists_page = cursor.fetchall()[0][0]
     if temp_exists_page is None:
         temp_exists_page = 0
@@ -129,7 +133,8 @@ def generate_nga_page_list_by_collector(tid, page_now):
     for pg in range(temp_exists_page+1, int(page_now)+1):
         temp_data.append([tid, pg])
     logger.info("需要更新page数量为：%s" % (len(temp_data)))
-    cursor.executemany("insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
+    cursor.executemany(
+        "insert into nga_post_page_list (tid,page,page_status) values (%s,%s,0)", temp_data)
     conn.commit()
     conn.close()
 
@@ -153,7 +158,8 @@ def add_nga_user(user_data):
 
 def process_special_first(tid, text):
     conn, cursor = connect_database()
-    re_uid = re.compile(r"<a href='nuke\.php\?func=ucp&uid=(\d*)'.*<h3 id='postsubject0'>(.*?)</h3><br/>", re.S)
+    re_uid = re.compile(
+        r"<a href='nuke\.php\?func=ucp&uid=(\d*)'.*<h3 id='postsubject0'>(.*?)</h3><br/>", re.S)
     nga_user_id, post_name = re.findall(re_uid, text)[0]
     logger.info("%s 是 %s 发的，贴名为 %s" % (tid, nga_user_id, post_name))
     cursor.execute("select count(*) from nga_post where tid=%s", [tid])
@@ -200,7 +206,8 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     # 访客限制频率
     if len(temp_yc_name) > 1:
         logger.info(f"{tid} , {page} 帖子被设为隐藏")
-        cursor.execute("update nga_post_page_list set page_status=4,create_time=now() where tid=%s and page=%s", [tid, page])
+        cursor.execute(
+            "update nga_post_page_list set page_status=4,create_time=now() where tid=%s and page=%s", [tid, page])
         conn.commit()
         conn.close()
         return True
@@ -242,7 +249,8 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
     img_tid = []
     img_data = []
 
-    cursor.execute("select reply_sequence from nga_post_reply where tid=%s and page=%s", [tid, page])
+    cursor.execute(
+        "select reply_sequence from nga_post_reply where tid=%s and page=%s", [tid, page])
     temp = cursor.fetchall()
     reply_sequence_exists = {x[0]: '' for x in temp}
 
@@ -281,7 +289,8 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         return
     reply_max = max([x[1] for x in items])
     reply_count = len(items)
-    logger.info(f"{tid} 本次抓取第{page}页，抓到回复{reply_count} ，需要插入的回复数量为{len(insert_data)}")
+    logger.info(
+        f"{tid} 本次抓取第{page}页，抓到回复{reply_count} ，需要插入的回复数量为{len(insert_data)}")
 
     # 插入回复
     if insert_data != []:
@@ -312,12 +321,16 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
         conn.commit()
     # 更新npp
     if special:
-        cursor.execute("update nga_post_page_list set page_status=0,create_time=now(),reply_count=%s where tid=%s and page=%s", [reply_max, tid, page])
+        cursor.execute("update nga_post_page_list set page_status=0,create_time=now(),reply_count=%s where tid=%s and page=%s", [
+                       reply_max, tid, page])
     else:
         if page < mpg:
-            cursor.execute("update nga_post_page_list set page_status=1,create_time=now() where npp_id=%s", [npp_id])
-    cursor.execute("update nga_post set reply_count=%s where tid=%s", [reply_max, tid])
-    cursor.execute("insert into nga_collector_temp (tid,page,reply_count) values (%s,%s,%s)", [tid, page, reply_count])
+            cursor.execute(
+                "update nga_post_page_list set page_status=1,create_time=now() where npp_id=%s", [npp_id])
+    cursor.execute("update nga_post set reply_count=%s where tid=%s", [
+                   reply_max, tid])
+    cursor.execute("insert into nga_collector_temp (tid,page,reply_count) values (%s,%s,%s)", [
+                   tid, page, reply_count])
     conn.commit()
     conn.close()
     return True
@@ -326,7 +339,8 @@ def collect_nga_one_page(npp_id, tid, page, mpg, special=False):
 def collect_nga_one_page_thread():
     while not page_queue.empty():
         npp_id, tid, page, mpg = page_queue.get()
-        logger.info(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (npp_id, tid, page))
+        logger.info(f"Thread {threading.current_thread().name} collect %s,%s,%s" % (
+            npp_id, tid, page))
         logger.info(f"剩余长度为{page_queue.qsize()}")
         temp = collect_nga_one_page(npp_id, tid, page, mpg)
         if temp:
@@ -337,7 +351,8 @@ def collect_nga_one_page_thread():
 
 def update_tid_reply_get():
     conn, cursor = connect_database()
-    cursor.execute("update nga_post a set a.reply_get= (select b.mrs from v_mrs b where b.tid=a.tid)")
+    cursor.execute(
+        "update nga_post a set a.reply_get= (select b.mrs from v_mrs b where b.tid=a.tid)")
     conn.commit()
     conn.close()
 
@@ -373,15 +388,18 @@ def update_page_status():
     logger.info(need_delete_row)
     if len(need_delete_row) > 0:
         logger.info(f"需要更新的页面数据量为 {len(need_delete_row)}")
-        cursor.executemany("delete from nga_collector_temp where tid=%s and collect_time<%s", need_delete_row)
+        cursor.executemany(
+            "delete from nga_collector_temp where tid=%s and collect_time<%s", need_delete_row)
         conn.commit()
 
-    cursor.execute("SELECT tid,page FROM nga_collector_temp group by tid,page  having count(*)>2 and count(distinct reply_count)=1")
+    cursor.execute(
+        "SELECT tid,page FROM nga_collector_temp group by tid,page  having count(*)>2 and count(distinct reply_count)=1")
     temp = cursor.fetchall()
     if len(temp) > 0:
         need_check_page_list = [[x[0], x[1]] for x in temp]
         logger.info(f"需要人工核查的页面数据量为 {len(need_check_page_list)}")
-        cursor.executemany("update nga_post_page_list set page_status=3 where tid=%s and page=%s", need_check_page_list)
+        cursor.executemany(
+            "update nga_post_page_list set page_status=3 where tid=%s and page=%s", need_check_page_list)
         conn.commit()
 
 
@@ -395,10 +413,12 @@ def collect_nga_post():
     conn, cursor = connect_database()
     logger.info("开始抓取nga的回复")
     logger.info("开始获取帖子列表")
-    cursor.execute("select tid,max(page) as mpg from nga_post_page_list group by tid;")
+    cursor.execute(
+        "select tid,max(page) as mpg from nga_post_page_list group by tid;")
     temp = cursor.fetchall()
     temp_max_page = {x[0]: x[1] for x in temp}
-    cursor.execute("select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
+    cursor.execute(
+        "select npp_id,tid,page from nga_post_page_list where page_status=0 order by page,tid limit 100;")
     temp = cursor.fetchall()
     logger.info(f"本次抓取长度为：{len(temp)}")
     for i in temp:
