@@ -118,7 +118,7 @@ def add_orders_ralations(src_order, relate_order):
 def get_need_update_fund():
     conn, cursor = connect_database()
     cursor.execute(
-        "select a.fund_code,a.fund_name from fund_total a,fund_orders b  where a.fund_code=b.fund_code and b.transaction_type=1 and b.order_date>date(a.cost_update_time) and  a.cost is not null;")
+        "select distinct a.fund_code,a.fund_name from fund_total a,fund_orders b  where a.fund_code=b.fund_code and b.transaction_type=1 and b.order_date>date(a.cost_update_time) and  a.cost is not null;")
     res = []
     for i in cursor:
         res.append({"value": i[0], 'label': i[1]})
