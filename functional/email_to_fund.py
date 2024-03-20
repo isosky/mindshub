@@ -101,7 +101,7 @@ def file_to_db():
                 for record in records:
                     record['isfry'] = False
                     if isinstance(record['fund_code'], int):
-                        record['fund_code'] = '0'+str(record['fund_code'])
+                        record['fund_code'] = str(record['fund_code']).zfill(6)
                     if record['buysell'] == 'sell':
                         add_sell_order(record)
                     else:
