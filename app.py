@@ -993,11 +993,25 @@ def gettravel():
     return json.dumps(temp)
 
 
-@ app.route('/getcycling')
+# #####################################
+# 定义cycling的函数
+# #####################################
+
+@ app.route('/getcycling', methods=['POST'])
 @auth.login_required
 def getcycling():
-    temp = cycling.get_cycling()
-    return json.dumps(temp)
+    json_data = json.loads(request.get_data())
+    cycling_type_selected = json_data['cycling_type_selected']
+    temp = cycling.get_cycling(cycling_type_selected)
+    _temp = ['tabledata', 'yaxis', 'avg_hr', 'max_hr', 'avg_cadence', 'intensity', 'efficiency', 'adr']
+    return json.dumps(dict(zip(_temp, temp)))
+
+
+@ app.route('/get_cycling_name')
+@auth.login_required
+def get_cycling_name():
+    temp = cycling.get_cycling_name()
+    return json.dumps({'data': temp})
 
 
 # #####################################
