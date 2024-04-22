@@ -1014,6 +1014,17 @@ def get_cycling_name():
     return json.dumps({'data': temp})
 
 
+@ app.route('/addcyctraindata', methods=['POST'])
+@auth.login_required
+def addcyctraindata():
+    json_data = json.loads(request.get_data())
+    cyctraindata = json_data['cyctraindata']
+    temp = cycling.add_cycling(cyctraindata)
+    # _temp = ['tabledata', 'yaxis', 'avg_hr', 'max_hr', 'avg_cadence', 'intensity', 'efficiency', 'adr']
+    # return json.dumps(dict(zip(_temp, temp)))
+    return json.dumps({'result': temp})
+
+
 # #####################################
 # 定义dft的函数
 # #####################################
