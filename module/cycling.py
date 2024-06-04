@@ -8,9 +8,11 @@ def add_cycling(cycdata):
     _dict = {'z2-1h': ['z2-1h'], 'z2-1.5h': ['z2-1h', 'z2-1.5h'], 'z2-2h': ['z2-1h', 'z2-1.5h', 'z2-2h'],
              'z3-1h': ['z3-1h'], 'z3-1.5h': ['z3-1h', 'z3-1.5h'], 'z3-2h': ['z3-1h', 'z3-1.5h', 'z3-2h']}
     _cycdata = cycdata['cycling_type_selected']
-    _stage = set([x['stage'] for x in cycdata['trainform']])
-    if _stage != set(_dict[_cycdata]):
-        return False
+    # 校验阶段全不全
+    if _cycdata in _dict:
+        _stage = set([x['stage'] for x in cycdata['trainform']])
+        if _stage != set(_dict[_cycdata]):
+            return False
     _data = []
     for one in cycdata['trainform']:
         if one['stage'] == _cycdata:
@@ -41,7 +43,7 @@ def add_cycling(cycdata):
 
 def get_cycling_name():
     conn, cursor = connect_database()
-    cursor.execute("select distinct name from cycling_records")
+    cursor.execute("select distinct name from cycling_records order by name")
     temp = []
     for i in cursor:
         temp.append({'value': i[0], 'label': i[0]})
