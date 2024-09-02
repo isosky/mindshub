@@ -116,3 +116,4 @@ func_*.py
 base/bili_cookies.py
 temp_data/i141958_activities.csv
 bc.txt
+sql/*

@@ -66,13 +66,14 @@ def error_handler():
 def add_task():
     # print(request.get_data())
     json_data = json.loads(request.get_data())
-    arg_type = json_data['type']
-    arg_sub_type = json_data['sub_type']
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    level3 = json_data['level3']
     arg_task_name = json_data['task_name']
     arg_edate = json_data['edate']
     arg_person = json_data['person']
     # print(arg_type, arg_task_name, arg_edate)
-    temp = task.add_task(arg_type, arg_sub_type,
+    temp = task.add_task(level1, level2, level3,
                          arg_task_name, arg_edate, arg_person)
     return json.dumps({'arrays': temp})
 
@@ -82,7 +83,7 @@ def add_task():
 @auth.login_required
 def initoption():
     temp = task.init_option()
-    return json.dumps({'task_sub_all_option': temp[0], 'task_select_option': temp[1], 'lastchecktime': temp[2], "dir_sub_all_option": temp[3], "dir_select_option": temp[4]})
+    return json.dumps({'task_sub_all_option': temp[0], 'task_level1_option': temp[1], 'level2_level3': temp[2], 'lastchecktime': temp[3], "dir_sub_all_option": temp[4], "dir_select_option": temp[5]})
 
 
 @app.route('/gettasknow')
@@ -157,12 +158,13 @@ def updatetask():
     json_data = json.loads(request.get_data())
     # print(json_data)
     task_id = json_data['task_id']
-    type = json_data['type']
-    sub_type = json_data['sub_type']
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    level3 = json_data['level3']
     task_name = json_data['task_name']
     etime = json_data['etime']
     status = json_data['dustatus']
-    task.update_task(task_id, type, sub_type, task_name, etime, status)
+    task.update_task(task_id, level1, level2, level3, task_name, etime, status)
     return json.dumps({'result': True})
 
 
@@ -888,7 +890,8 @@ def add_fund_customer_label():
     json_data = json.loads(request.get_data())
     fund_customer_label_selected = json_data['fund_customer_label_selected']
     fund_customer_fund_selected = json_data['fund_customer_fund_selected']
-    temp = fund_setting.add_fund_customer_label(fund_customer_label_selected, fund_customer_fund_selected)
+    temp = fund_setting.add_fund_customer_label(
+        fund_customer_label_selected, fund_customer_fund_selected)
     return json.dumps({'res': temp})
 
 
@@ -918,7 +921,8 @@ def add_fund_label():
     json_data = json.loads(request.get_data())
     fund_base_label_selected = json_data['fund_base_label_selected']
     fund_had_code_selected = json_data['fund_had_code_selected']
-    temp = fund_setting.add_fund_label(fund_base_label_selected, fund_had_code_selected)
+    temp = fund_setting.add_fund_label(
+        fund_base_label_selected, fund_had_code_selected)
     return json.dumps({'res': temp})
 
 
@@ -1003,7 +1007,8 @@ def getcycling():
     json_data = json.loads(request.get_data())
     cycling_type_selected = json_data['cycling_type_selected']
     temp = cycling.get_cycling(cycling_type_selected)
-    _temp = ['tabledata', 'yaxis', 'avg_hr', 'max_hr', 'avg_cadence', 'intensity', 'efficiency', 'adr']
+    _temp = ['tabledata', 'yaxis', 'avg_hr', 'max_hr',
+             'avg_cadence', 'intensity', 'efficiency', 'adr']
     return json.dumps(dict(zip(_temp, temp)))
 
 
@@ -1100,7 +1105,8 @@ LOG_LEVEL = 'INFO'
 
 
 # 创建按天滚动的文件处理器
-rolling_handler = TimedRotatingFileHandler(LOG_FILE, when='midnight', interval=1)
+rolling_handler = TimedRotatingFileHandler(
+    LOG_FILE, when='midnight', interval=1)
 rolling_handler.setLevel(LOG_LEVEL)
 rolling_handler.setFormatter(Formatter(LOG_FORMAT))
 

@@ -7,11 +7,11 @@ import datetime
 
 
 # TODO 准备开始弄个新module
-def add_schedule(type, sub_type, schedule_type, schedule_frequence, task_name):
-    # sql = 'insert into schedule (type,sub_type,task_name) values (%s,%s,%s)'
+def add_schedule(level1, level2, schedule_type, schedule_frequence, task_name):
+    # sql = 'insert into schedule (level1,level2,task_name) values (%s,%s,%s)'
     conn, cursor = connect_database()
-    cursor.execute("insert into schedule (type,sub_type,task_name,schedule_type,schedule_frequence) values (%s,%s,%s,%s,%s)", [
-        type, sub_type, task_name, schedule_type, schedule_frequence])
+    cursor.execute("insert into schedule (level1,level2,task_name,schedule_type,schedule_frequence) values (%s,%s,%s,%s,%s)", [
+        level1, level2, task_name, schedule_type, schedule_frequence])
     s_id = cursor.lastrowid
     nexttime = get_next_schedule_time(schedule_type, schedule_frequence, None)
     # if schedule_type == 'month':
@@ -94,14 +94,14 @@ def run_schedule(force=False):
             "select * from schedule where isabandon=0 and (lasttime is null or nexttime<DATE_ADD(NOW(), INTERVAL 10 DAY))")
         res = []
         for i in cursor:
-            temp = {'schedule_id': i[0], 'type': i[1], 'sub_type': i[2], 'task_name': i[3],
+            temp = {'schedule_id': i[0], 'level1': i[1], 'level2': i[2], 'task_name': i[3],
                     'schedule_type': i[4], 'schedule_frequence': i[5], 'nexttime': i[8]}
             res.append(temp)
         # 添加定时任务
         for i in res:
             # print(i['subject'],i['subsub'],i['content'],i['nexttime']+' 00:00:00')
-            cursor.execute("insert into task (type,sub_type,task_name,etime,iswork) values (%s,%s,%s,%s,%s)", [
-                i['type'], i['sub_type'], i['task_name'], i['nexttime'], type_work[i['type']]])
+            cursor.execute("insert into task (level1,level2,task_name,etime,iswork) values (%s,%s,%s,%s,%s)", [
+                i['level1'], i['level2'], i['task_name'], i['nexttime'], type_work[i['level1']]])
             newtaskid = cursor.lastrowid
             cursor.execute("insert into schedule_task (schedule_id,task_id,etime) values (%s,%s,%s)", [
                 i['schedule_id'], newtaskid, i['nexttime']])
@@ -149,11 +149,11 @@ def delete_schedule(schedule_id):
     return True
 
 
-def update_schedule(schedule_id, type, sub_type, schedule_type, schedule_frequence, task_name):
+def update_schedule(schedule_id, level1, level2, schedule_type, schedule_frequence, task_name):
     conn, cursor = connect_database()
     netxtime = get_next_schedule_time(schedule_type, schedule_frequence, None)
-    cursor.execute("update schedule set type=%s,sub_type=%s,schedule_type=%s,schedule_frequence=%s,nexttime=%s,task_name=%s where schedule_id=%s", [
-        type, sub_type, schedule_type, schedule_frequence, netxtime, task_name, schedule_id])
+    cursor.execute("update schedule set level1=%s,level2=%s,schedule_type=%s,schedule_frequence=%s,nexttime=%s,task_name=%s where schedule_id=%s", [
+        level1, level2, schedule_type, schedule_frequence, netxtime, task_name, schedule_id])
     cursor.execute(
         "update task set task_name=%s where task_id in (select task_id from schedule_task where schedule_id=%s)", [task_name, schedule_id])
     conn.commit()
@@ -215,7 +215,7 @@ def get_schedule():
             lasttime = i[7].strftime('%Y-%m-%d')
         else:
             lasttime = i[7]
-        temp = {'schedule_id': i[0], 'type': i[1], 'sub_type': i[2], 'task_name': i[3],
+        temp = {'schedule_id': i[0], 'level1': i[1], 'level2': i[2], 'task_name': i[3],
                 'schedule_type': i[4], 'schedule_frequence': i[5], 'lasttime': lasttime, 'nexttime': i[8].strftime('%Y-%m-%d'), 'isabandon': i[9]}
         res.append(temp)
     conn.close()

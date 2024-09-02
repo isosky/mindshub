@@ -9,12 +9,12 @@ from base.config import myself_name
 from module.travel import init_travel
 
 
-def add_task(type: str, sub_type: str, task_name: str, etime: datetime.date, person_arrays: list) -> list:
+def add_task(level1: str, level2: str, level3: str, task_name: str, etime: datetime.date, person_arrays: list) -> list:
     # TODO bug 添加任务的时候，如果过期了，status不应该使用默认值
     conn, cursor = connect_database()
     temp_base_type = get_base_type()
-    cursor.execute("insert into task (type,sub_type,task_name,etime,iswork) values (%s,%s,%s,%s,%s)", [
-        type, sub_type, task_name, etime, temp_base_type[type]])
+    cursor.execute("insert into task (level1,level2,level3,task_name,etime,iswork) values (%s,%s,%s,%s,%s,%s)", [
+        level1, level2, level3, task_name, etime, temp_base_type[level1]])
     conn.commit()
     cursor.execute("select max(task_id) from task")
     task_id = cursor.fetchone()[0]
@@ -31,13 +31,13 @@ def get_task_now():
     iswork = get_sys_params(2)
     conn, cursor = connect_database()
     cursor.execute(
-        "select task_id,type,sub_type,task_name,etime,stime,isfinish,status from task where isfinish=0 and isabandon=0 and iswork>=%s order by etime,task_id", [iswork])
+        "select task_id,level1,level2,task_name,etime,stime,isfinish,status from task where isfinish=0 and isabandon=0 and iswork>=%s order by etime,task_id", [iswork])
     temp_data = cursor.fetchall()
     result = []
     process = count_task_process_number()
     person = count_task_person_number()
     for row in temp_data:
-        temp = {'task_id': row[0], 'type': row[1], 'sub_type': row[2],
+        temp = {'task_id': row[0], 'level1': row[1], 'level2': row[2],
                 'task_name': row[3], 'etime': row[4].strftime('%m-%d'), 'stime': row[5].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[4].strftime('%Y-%m-%d'), 'isfinish': row[6], 'status': row[7]}
         if row[0] in process.keys():
             temp['num_process'] = process[row[0]]
@@ -82,11 +82,12 @@ def init_option():
     conn, cursor = connect_database()
     # 获得所有
     result = {}
+    level2_level3 = {}
     result_all = []
 
     t = cal_begin()
     cursor.execute(
-        "select type,count(*) from task where isabandon=0 and iswork>=%s and stime>=DATE_SUB(%s, INTERVAL 7 DAY) group by type order by 2 desc", [iswork, t])
+        "select level1,count(*) from task where isabandon=0 and iswork>=%s and stime>=DATE_SUB(%s, INTERVAL 7 DAY) group by level1 order by 2 desc", [iswork, t])
     for i in cursor:
         result_all.append({'value': i[0], 'label': i[0]})
         result[i[0]] = []
@@ -99,16 +100,34 @@ def init_option():
 
     # 得到近7天高频的
     cursor.execute(
-        "select type,sub_type,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by type,sub_type order by 3 desc", [iswork, t])
+        "select level1,level2,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by level1,level2 order by 3 desc", [iswork, t])
     for row in cursor:
         result[row[0]].append(row[1])
 
     # 将多的加回来
     cursor.execute(
-        "select type,sub_type,count(*) from task where isabandon=0 and iswork>=%s group by type,sub_type order by 3 desc", [iswork])
+        "select level1,level2,count(*) from task where isabandon=0 and iswork>=%s group by level1,level2 order by 3 desc", [iswork])
     for row in cursor:
         if row[1] not in result[row[0]]:
             result[row[0]].append(row[1])
+
+    # 得到近7天高频的
+    cursor.execute(
+        "select level2,level3,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by level2,level3 order by 3 desc", [iswork, t])
+    for row in cursor:
+        if row[0] not in level2_level3:
+            level2_level3[row[0]] = []
+        level2_level3[row[0]].append(row[1])
+
+    # 将多的加回来
+    cursor.execute(
+        "select level2,level3,count(*) from task where isabandon=0 and iswork>=%s group by level2,level3 order by 3 desc", [iswork])
+    for row in cursor:
+        if row[0] not in level2_level3:
+            level2_level3[row[0]] = []
+        else:
+            if row[1] not in level2_level3[row[0]]:
+                level2_level3[row[0]].append(row[1])
 
     cursor.execute("select value from sys_cfg where id=1")
     lastchecktime = cursor.fetchone()[0]
@@ -125,7 +144,7 @@ def init_option():
             dir[row[0]].append(row[1])
 
     conn.close()
-    return [result, result_all, lastchecktime, dir, dir_all]
+    return [result, result_all, level2_level3, lastchecktime, dir, dir_all]
 
 
 def cal_begin():
@@ -211,11 +230,11 @@ def finish_task(task_id: int, finishtaskform: dict):
     # 格式化成2016-03-20 11:45:39形式
     ftime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     cursor.execute(
-        "select etime,type,sub_type from task where task_id=%s", [task_id])
+        "select etime,level1,level2 from task where task_id=%s", [task_id])
     temp = cursor.fetchone()
     etime = temp[0].strftime('%Y-%m-%d') + ' 23:59:59'
     task_type = temp[1]
-    task_sub_type = temp[2]
+    task_level2 = temp[2]
     etime_ts = time.mktime(time.strptime(etime, "%Y-%m-%d %H:%M:%S"))
     now_ts = time.time()
     if finishtaskform['desc'] == '':
@@ -250,15 +269,15 @@ def finish_task(task_id: int, finishtaskform: dict):
         for i in finishtaskform['peoples']:
             for j in temp_dir:
                 tps.append([task_id, i['person_id'], task_type,
-                            task_sub_type, j[0], j[1], j[2], i['score_activity'], i['score_critical']])
+                            task_level2, j[0], j[1], j[2], i['score_activity'], i['score_critical']])
 
         tps = [tuple(x) for x in tps]
         cursor.executemany(
-            "insert into task_person_score (task_id,person_id,type,sub_type,dir,sub_dir,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", tps)
+            "insert into task_person_score (task_id,person_id,level1,level2,dir,sub_dir,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", tps)
 
     conn.commit()
     temp = None
-    if task_sub_type == '出行':
+    if task_level2 == '出行':
         temp = init_travel()
     conn.close()
     return temp
@@ -287,24 +306,24 @@ def delete_task_by_task_id(task_id: int):
     conn.close()
 
 
-def query_task(query, type, sub_type, ftime, query_duration, isstime, isqueryall, mode):
+def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall, mode):
     # TODO 还没测试
-    # print(query, type, sub_type, ftime,
+    # print(query, level1, level2, ftime,
     #       query_duration, isstime, isqueryall, mode)
     # print(ftime, '|', query_duration, '|', isstime)
     iswork = get_sys_params(2)
     conn, cursor = connect_database()
     query = '%'+query+'%'
-    sql = "select task_id,type,sub_type,task_name,etime,stime,isfinish,status from task where isabandon=0 and task_name like %s"
+    sql = "select task_id,level1,level2,level3,task_name,etime,stime,isfinish,status from task where isabandon=0 and task_name like %s"
     if not isqueryall:
         sql += " and isfinish = 0 "
     params_list = [query]
-    if type != '':
-        sql += " and type=%s "
-        params_list.append(type)
-    if sub_type != '':
-        sql += " and sub_type=%s "
-        params_list.append(sub_type)
+    if level1 != '':
+        sql += " and level1=%s "
+        params_list.append(level1)
+    if level2 != '':
+        sql += " and level2=%s "
+        params_list.append(level2)
     # if ftime != '':
     #     sql += " and ftime like %s"
     #     ftime = '%'+ftime+'%'
@@ -342,8 +361,8 @@ def query_task(query, type, sub_type, ftime, query_duration, isstime, isqueryall
     person = count_task_person_number()
     result = []
     for row in cursor:
-        temp = {'task_id': row[0], 'type': row[1], 'sub_type': row[2],
-                'task_name': row[3], 'etime': row[4].strftime('%m-%d'), 'stime': row[5].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[4].strftime('%Y-%m-%d'), 'isfinish': row[6], 'status': row[7]}
+        temp = {'task_id': row[0], 'level1': row[1], 'level2': row[2], 'level3': row[3],
+                'task_name': row[4], 'etime': row[5].strftime('%m-%d'), 'stime': row[6].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[5].strftime('%Y-%m-%d'), 'isfinish': row[7], 'status': row[8]}
         if row[0] in process.keys():
             temp['num_process'] = process[row[0]]
         else:
@@ -363,7 +382,7 @@ def query_task(query, type, sub_type, ftime, query_duration, isstime, isqueryall
 def get_task_this_week():
     iswork = get_sys_params(2)
     conn, cursor = connect_database()
-    sql = "select task_id,type,sub_type,task_name,etime,stime,isfinish,status from task where isabandon=0 and iswork >= %s AND etime <= %s AND isfinish =0 order by etime"
+    sql = "select task_id,level1,level2,task_name,etime,stime,isfinish,status from task where isabandon=0 and iswork >= %s AND etime <= %s AND isfinish =0 order by etime"
     today = datetime.datetime.today()
     etime = datetime.datetime.strftime(
         today + datetime.timedelta(7 - today.weekday() - 1), "%Y-%m-%d")
@@ -372,7 +391,7 @@ def get_task_this_week():
     person = count_task_person_number()
     result = []
     for row in cursor:
-        temp = {'task_id': row[0], 'type': row[1], 'sub_type': row[2],
+        temp = {'task_id': row[0], 'level1': row[1], 'level2': row[2],
                 'task_name': row[3], 'etime': row[4].strftime('%m-%d'), 'stime': row[5].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[4].strftime('%Y-%m-%d'), 'isfinish': row[6], 'status': row[7]}
         if row[0] in process.keys():
             temp['num_process'] = process[row[0]]
@@ -384,10 +403,10 @@ def get_task_this_week():
     return result
 
 
-def get_task_by_type(type, main, sub):
+def get_task_by_type(level1, main, sub):
     conn, cursor = connect_database()
-    if type == 'type':
-        sql = ' type = %s and sub_type=%s '
+    if level1 == 'level1':
+        sql = ' level1 = %s and level2=%s '
     else:
         sql = ' dir =%s and sub_dir=%s '
     cursor.execute("select task_name,hours,ftime,task_id from task where task_id in (select distinct task_id from task_person_score where " +
@@ -399,9 +418,9 @@ def get_task_by_type(type, main, sub):
     return res
 
 
-def update_task(task_id, type, sub_type, task_name, etime, status):
+def update_task(task_id, level1, level2, level3, task_name, etime, status):
     conn, cursor = connect_database()
-    # print(task_id, sub_type, task_name, etime)
+    # print(task_id, level2, task_name, etime)
     if status == 1 or status == 3:
         etime_ts = time.mktime(time.strptime(
             etime + ' 23:59:59', "%Y-%m-%d %H:%M:%S"))
@@ -412,8 +431,8 @@ def update_task(task_id, type, sub_type, task_name, etime, status):
             status = 1
     cursor.execute(
         "insert into task_his  select *,now() from task where task_id=%s", [task_id])
-    cursor.execute("update task set type=%s, sub_type=%s , task_name=%s , etime=%s,status=%s where task_id =%s ", [
-        type, sub_type, task_name, etime, status, task_id])
+    cursor.execute("update task set level1=%s, level2=%s ,level3=%s , task_name=%s , etime=%s,status=%s where task_id =%s ", [
+        level1, level2, level3, task_name, etime, status, task_id])
     conn.commit()
     conn.close()
 
@@ -423,7 +442,7 @@ def get_bar_data_from_task():
     t = cal_begin()
     conn, cursor = connect_database()
     cursor.execute(
-        "select type,sub_type,count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s) group by type,sub_type order by 3,1,2", [iswork, t, t])
+        "select level1,level2,count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s) group by level1,level2 order by 3,1,2", [iswork, t, t])
     yAxisdata = []
     for i in cursor:
         yAxisdata.append(i[0]+'-'+i[1])
@@ -437,7 +456,7 @@ def get_bar_data_from_task():
     yAxisabandon = {}
 
     cursor.execute(
-        "select type,sub_type,status,count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s)  group by type,sub_type,status order by 1,2,3", [iswork, t, t])
+        "select level1,level2,status,count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s)  group by level1,level2,status order by 1,2,3", [iswork, t, t])
     for i in cursor:
         if i[2] == 1:
             yAxistodo[i[0]+'-'+i[1]] = i[3]
@@ -456,31 +475,31 @@ def get_bar_data_from_task():
     yAxistodooverdue_list = []
     yAxisabandon_list = []
 
-    for sub_type in yAxisdata:
-        if sub_type not in yAxistodo.keys():
+    for level2 in yAxisdata:
+        if level2 not in yAxistodo.keys():
             yAxistodo_list.append(0)
         else:
-            yAxistodo_list.append(yAxistodo[sub_type])
+            yAxistodo_list.append(yAxistodo[level2])
 
-        if sub_type not in yAxisnormal.keys():
+        if level2 not in yAxisnormal.keys():
             yAxisnormal_list.append(0)
         else:
-            yAxisnormal_list.append(yAxisnormal[sub_type])
+            yAxisnormal_list.append(yAxisnormal[level2])
 
-        if sub_type not in yAxisoverdue.keys():
+        if level2 not in yAxisoverdue.keys():
             yAxisoverdue_list.append(0)
         else:
-            yAxisoverdue_list.append(yAxisoverdue[sub_type])
+            yAxisoverdue_list.append(yAxisoverdue[level2])
 
-        if sub_type not in yAxistodooverdue.keys():
+        if level2 not in yAxistodooverdue.keys():
             yAxistodooverdue_list.append(0)
         else:
-            yAxistodooverdue_list.append(yAxistodooverdue[sub_type])
+            yAxistodooverdue_list.append(yAxistodooverdue[level2])
 
-        if sub_type not in yAxisabandon.keys():
+        if level2 not in yAxisabandon.keys():
             yAxisabandon_list.append(0)
         else:
-            yAxisabandon_list.append(yAxisabandon[sub_type])
+            yAxisabandon_list.append(yAxisabandon[level2])
 
     sum_todo = sum(yAxistodo_list)
     sum_normal = sum(yAxisnormal_list)
@@ -499,7 +518,7 @@ def get_bar_data_from_task():
         finish_percent = 0
 
     cursor.execute(
-        " select type, count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s) group by type order by 2 desc", [iswork, t, t])
+        " select level1, count(*) from task where iswork>=%s and (stime>=%s or status in (1,3) or ftime>=%s) group by level1 order by 2 desc", [iswork, t, t])
     pie_type_data = []
     for i in cursor:
         pie_type_data.append({'name': i[0], 'value': i[1]})
@@ -609,9 +628,9 @@ def get_task_type_option():
     conn, cursor = connect_database()
     temp = []
     cursor.execute(
-        "select distinct type,sub_type from task")
+        "select distinct level1,level2 from task")
     for i in cursor:
-        temp.append({'type': i[0], 'subtype': i[1]})
+        temp.append({'level1': i[0], 'subtype': i[1]})
     conn.commit()
     conn.close()
     return temp
@@ -630,7 +649,7 @@ def get_person_by_task_id(task_id):
             "all_activity": round(row[1], 2), "all_critical": round(row[2], 2)}
 
     cursor.execute(
-        "select person_id,AVG(score_activity) as sub_activity,AVG(score_critical) as sub_critical from task_person_score a , (select type,sub_type from task where  task_id=%s) b where a.type=b.type and a.sub_type=b.sub_type group by a.person_id;", [task_id])
+        "select person_id,AVG(score_activity) as sub_activity,AVG(score_critical) as sub_critical from task_person_score a , (select level1,level2 from task where  task_id=%s) b where a.level1=b.level1 and a.level2=b.level2 group by a.person_id;", [task_id])
     temp = cursor.fetchall()
     sub_person_data = {}
     for row in temp:
@@ -698,10 +717,10 @@ def delete_person_by_task_id(task_id, person_id):
     return res
 
 
-def get_recommended_person_by_type(type, sub_type):
+def get_recommended_person_by_type(level1, level2):
     conn, cursor = connect_database()
     cursor.execute(
-        "select b.person_id,c.company,c.person_name,count(*) from task a,task_person b,person c where a.task_id=b.task_id and c.person_id=b.person_id and a.type=%s and a.sub_type=%s group by b.person_id,c.company,c.person_name order by 4 desc limit 10; ", [type, sub_type])
+        "select b.person_id,c.company,c.person_name,count(*) from task a,task_person b,person c where a.task_id=b.task_id and c.person_id=b.person_id and a.level1=%s and a.level2=%s group by b.person_id,c.company,c.person_name order by 4 desc limit 10; ", [level1, level2])
     personrecommend = []
     for i in cursor:
         personrecommend.append({'id': i[0], 'label': i[1]+'-' + i[2]})
@@ -746,9 +765,9 @@ def get_treemap_data_from_task():
     conn, cursor = connect_database()
     treemap_type_data = {}
     # cursor = cursor.execute(
-    #     "select type,sub_type,sum(hours) from task_person_score where person_id=0 group by type,sub_type order by 1;")
+    #     "select level1,level2,sum(hours) from task_person_score where person_id=0 group by level1,level2 order by 1;")
     cursor.execute(
-        "select type,sub_type,sum(hours) from task where hours is not null and is_score=1 group by type,sub_type order by 1;")
+        "select level1,level2,sum(hours) from task where hours is not null and is_score=1 group by level1,level2 order by 1;")
     for row in cursor:
         if row[0] not in treemap_type_data.keys():
             treemap_type_data[row[0]] = {
@@ -781,7 +800,7 @@ def get_sankey_data_from_task():
     nodes_depth = {'技术': 1, '行业': 2, '领域': 3, '技能': 4}
     nodes = []
 
-    cursor.execute("select distinct sub_type from task_person_score;")
+    cursor.execute("select distinct level2 from task_person_score;")
     for row in cursor:
         nodes.append({'name': row[0], 'depth': 0})
 
@@ -795,7 +814,7 @@ def get_sankey_data_from_task():
     links = []
     # 考虑A到B、C、D
     cursor.execute(
-        "select sub_type,dir,sub_dir,sum(hours) from task_person_score where person_id=0 GROUP BY sub_type,sub_dir;")
+        "select level2,dir,sub_dir,sum(hours) from task_person_score where person_id=0 GROUP BY level2,sub_dir;")
     for row in cursor:
         links.append(
             {"source": row[0], "target": row[1]+'-'+row[2], 'value': row[3]})
