@@ -12,31 +12,37 @@ def delete_person(personid):
     conn.close()
 
 
-def get_company():
+def getpersonoptions():
     conn, cursor = connect_database()
-    company_selector = []
+    company_options = []
     cursor.execute(
         "select company,count(*) from person group by company order by 2 desc")
     for i in cursor:
-        company_selector.append({'value': i[0], 'label': i[0]})
+        company_options.append({'value': i[0], 'label': i[0]})
 
-    person_post_selector = []
+    department_options = []
     cursor.execute(
-        "select person_post,count(*) from person group by person_post order by 2 desc")
+        "select department,count(*) from person group by department order by 2 desc")
     for i in cursor:
-        person_post_selector.append({'value': i[0], 'label': i[0]})
+        department_options.append({'value': i[0], 'label': i[0]})
+
+    post_options = []
+    cursor.execute(
+        "select post,count(*) from person group by post order by 2 desc")
+    for i in cursor:
+        post_options.append({'value': i[0], 'label': i[0]})
     conn.close()
-    return {"person_post_selector": person_post_selector, "company_selector": company_selector}
+    return {"post_options": post_options, "department_options": department_options, "company_options": company_options}
 
 
 def get_person():
     conn, cursor = connect_database()
     temp = []
     cursor.execute(
-        "select person_id,company,person_name,person_post,person_py from person order by 5 ")
+        "select person_id,company,department,person_name,post,person_py from person order by 5 ")
     for i in cursor:
-        temp.append({'person_id': i[0], 'company': i[1],
-                     'person_name': i[2], 'person_post': i[3], 'person_py': i[4]})
+        temp.append({'person_id': i[0], 'company': i[1], 'department': i[2],
+                     'person_name': i[3], 'post': i[4], 'person_py': i[5]})
     conn.commit()
     conn.close()
     return temp
@@ -54,17 +60,18 @@ def get_person_count():
     return temp
 
 
-def add_person(company, person_name, person_post, force: bool):
+def add_person(company, department, person_name, post, force: bool):
     try:
         conn, cursor = connect_database()
-        cursor.execute("select count(*) from person where company=%s and person_name=%s", [company, person_name])
+        cursor.execute(
+            "select count(*) from person where company=%s and person_name=%s", [company, person_name])
         temp = cursor.fetchone()[0]
         if temp > 0 and not force:
             return {"msg": '姓名重复'}
         content = pinyin(person_name, style=Style.FIRST_LETTER)
         person_py = ''.join([x[0] for x in content])
-        cursor.execute("insert into person (company,person_name,person_post,person_py) values (%s,%s,%s,%s)", [
-            company, person_name, person_post, person_py])
+        cursor.execute("insert into person (company,department,person_name,post,person_py) values (%s,%s,%s,%s,%s)", [
+            company, department, person_name, post, person_py])
         conn.commit()
     except Exception as e:
         print(f"An error occurred: {e}")

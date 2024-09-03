@@ -498,10 +498,10 @@ def delete_nga_special_user():
     return json.dumps({"data": temp_data})
 
 
-@ app.route('/getcompany')
+@ app.route('/getpersonoptions')
 @auth.login_required
-def getcompany():
-    res = person.get_company()
+def getpersonoptions():
+    res = person.getpersonoptions()
     return json.dumps(res)
 
 
@@ -524,10 +524,12 @@ def getperson_option():
 def addperson():
     json_data = json.loads(request.get_data())
     company = json_data['company']
+    department = json_data['department']
     person_name = json_data['person_name']
-    person_post = json_data['person_post']
+    post = json_data['post']
     force = json_data['force']
-    temp = person.add_person(company, person_name, person_post, force)
+    temp = person.add_person(
+        company, department, person_name, post, force)
     return json.dumps(temp)
 
 
