@@ -254,12 +254,13 @@ def initschedule():
 @auth.login_required
 def addschedule():
     json_data = json.loads(request.get_data())
-    type = json_data['type']
-    sub_type = json_data['sub_type']
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    level3 = json_data['level3']
     schedule_type = json_data['schedule_type']
     schedule_frequence = json_data['schedule_frequence']
     task_name = json_data['task_name']
-    temp = schedule.add_schedule(type, sub_type, schedule_type,
+    temp = schedule.add_schedule(level1, level2, level3, schedule_type,
                                  schedule_frequence, task_name)
     return json.dumps({'result': temp})
 
@@ -307,12 +308,13 @@ def startschedule():
 def modifyschedule():
     json_data = json.loads(request.get_data())
     schedule_id = json_data['schedule_id']
-    type = json_data['type']
-    sub_type = json_data['sub_type']
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    level3 = json_data['level3']
     schedule_type = json_data['schedule_type']
     schedule_frequence = json_data['schedule_frequence']
     task_name = json_data['schedule_content']
-    return json.dumps({'status': schedule.update_schedule(schedule_id, type, sub_type, schedule_type, schedule_frequence, task_name)})
+    return json.dumps({'status': schedule.update_schedule(schedule_id, level1, level2, level3, schedule_type, schedule_frequence, task_name)})
 
 
 # #####################################
