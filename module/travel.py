@@ -80,7 +80,7 @@ def init_travel():
     for i in cursor:
         city_datas[i[1]] = {'lon': i[2], "lat": i[3]}
     cursor.execute(
-        "select task_id,task_name,etime from task where sub_type='出行' and isfinish=1 and task_id not in (select task_id from travel)")
+        "select task_id,task_name,etime from task where level2='出行' and isfinish=1 and task_id not in (select task_id from travel)")
     temp = cursor.fetchall()
     temp_datas = []
     msg = ''
