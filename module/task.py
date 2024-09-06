@@ -277,7 +277,7 @@ def finish_task(task_id: int, finishtaskform: dict):
 
     conn.commit()
     temp = None
-    if task_level2 == '出行':
+    if task_level2 == '出行' or task_level2 == '出差':
         temp = init_travel()
     conn.close()
     return temp
