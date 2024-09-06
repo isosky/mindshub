@@ -112,3 +112,48 @@ def get_scatter_data_from_task(type: str, sub_type: str, person_id: int) -> dict
             [round(i[1]-5, 2), round(i[2]-5, 2)])
     conn.close()
     return {'scatter_data': scatter_data}
+
+
+# 假设您已经有一个get_db_connection()函数来获取数据库连接
+# def get_db_connection():
+#     # 返回数据库连接
+#     pass
+
+def create_education_info(person_id, school_name, major, degree_obtained, enrollment_year, graduation_year, education_level):
+    conn, cursor = connect_database()
+    sql = """  
+    INSERT INTO education_info (person_id, school_name, major, degree_obtained, enrollment_year, graduation_year, education_level)  
+    VALUES (%s, %s, %s, %s, %s, %s, %s)  
+    """
+    cursor.execute(sql, (person_id, school_name, major, degree_obtained,
+                         enrollment_year, graduation_year, education_level))
+    conn.commit()
+
+
+def read_education_info(person_id=None):
+    conn, cursor = connect_database()
+    if person_id is None:
+        sql = "SELECT * FROM education_info"
+    else:
+        sql = "SELECT * FROM education_info WHERE person_id = %s"
+        cursor.execute(sql, (person_id,))
+    cursor.execute(sql)
+    results = cursor.fetchall()
+    return results
+
+
+def update_education_info(ei_id, **kwargs):
+    updates = ', '.join([f"{key} = %s" for key in kwargs])
+    conn, cursor = connect_database()
+    sql = f"UPDATE education_info SET {updates} WHERE ei_id = %s"
+    params = list(kwargs.values())
+    params.append(ei_id)
+    cursor.execute(sql, tuple(params))
+    conn.commit()
+
+
+def delete_education_info(ei_id):
+    conn, cursor = connect_database()
+    sql = "DELETE FROM education_info WHERE ei_id = %s"
+    cursor.execute(sql, (ei_id,))
+    conn.commit()
