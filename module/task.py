@@ -135,7 +135,7 @@ def init_option():
     dir = {}
     dir_all = []
     cursor.execute(
-        "select  dir,sub_dir,sum(hours) from task_person_score group by dir,sub_dir order by 3 desc; ")
+        "select skill_level1,skill_level2,sum(hours) from task_person_skill group by skill_level1,skill_level2 order by 3 desc; ")
     for row in cursor:
         if row[0] not in dir.keys():
             dir[row[0]] = [row[1]]
@@ -233,8 +233,8 @@ def finish_task(task_id: int, finishtaskform: dict):
         "select etime,level1,level2 from task where task_id=%s", [task_id])
     temp = cursor.fetchone()
     etime = temp[0].strftime('%Y-%m-%d') + ' 23:59:59'
-    task_type = temp[1]
-    task_level2 = temp[2]
+    level1 = temp[1]
+    level2 = temp[2]
     etime_ts = time.mktime(time.strptime(etime, "%Y-%m-%d %H:%M:%S"))
     now_ts = time.time()
     if finishtaskform['desc'] == '':
@@ -268,19 +268,42 @@ def finish_task(task_id: int, finishtaskform: dict):
 
         for i in finishtaskform['peoples']:
             for j in temp_dir:
-                tps.append([task_id, i['person_id'], task_type,
-                            task_level2, j[0], j[1], j[2], i['score_activity'], i['score_critical']])
+                tps.append([task_id, i['person_id'], level1,
+                            level2, j[0], j[1], j[2], i['score_activity'], i['score_critical']])
 
         tps = [tuple(x) for x in tps]
+        # todo fix
         cursor.executemany(
-            "insert into task_person_score (task_id,person_id,level1,level2,dir,sub_dir,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", tps)
+            "insert into task_person_score (task_id,person_id,level1,level2,skill_level1,skill_level2,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", tps)
 
     conn.commit()
-    temp = None
-    if task_level2 == '出行' or task_level2 == '出差':
-        temp = init_travel()
     conn.close()
+    temp = None
+    if level2 == '出行' or level2 == '出差':
+        temp = init_travel()
+
+    # 完成项目相关信息的录入
+    if level1 == '项目':
+        update_project_by_task(task_id)
+
     return temp
+
+
+def update_project_by_task(task_id):
+    conn, cursor = connect_database()
+    cursor.execute("select project_id from task where task_id =%s", [task_id])
+    project_id = cursor.fetchone()[0]
+    if project_id:
+        cursor.execute(
+            "select count(*) from task where project_id = %s", [project_id])
+        task_count = cursor.fetchone()[0]
+        cursor.execute(
+            "select count(distinct person_id) from task a,task_person b where a.task_id=b.task_id  and  a.project_id = %s", [project_id])
+        person_count = cursor.fetchone()[0]
+        cursor.execute("update project set task_count=%s ,person_count =%s where project_id=%s", [
+                       task_count, person_count, project_id])
+        conn.commit()
+    conn.close()
 
 
 def get_process_by_task_id(task_id: int) -> list:
@@ -680,7 +703,7 @@ def get_person_by_task_id(task_id):
 def get_sub_by_task_id(task_id):
     conn, cursor = connect_database()
     cursor.execute(
-        "select dir,sub_dir,hours from task_person_score where person_id=0 and task_id=%s", [task_id])
+        "select skill_level1,skill_level2,hours from task_person_skill where person_id=0 and task_id=%s", [task_id])
     res = []
     for i in cursor:
         res.append({'dir': i[0], 'sub_dir': i[1], 'hours': i[2]})
@@ -738,7 +761,7 @@ def calculate_process_hours():
     conn, cursor = connect_database()
     progress_color = {'技术': 0, '领域': 33, '行业': 66, '技能': 100}
     cursor.execute(
-        "select dir,sub_dir,sum(hours) from task_person_score where person_id =0 group by dir,sub_dir order by sum(hours) desc;")
+        "select skill_level1,skill_level2,sum(hours) from task_person_skill where person_id =0 group by skill_level1,skill_level2 order by sum(hours) desc;")
     temp = []
     for i in cursor:
         temp.append([i[1], round(i[2], 2), progress_color[i[0]]])
@@ -764,8 +787,6 @@ def get_task_by_calendar():
 def get_treemap_data_from_task():
     conn, cursor = connect_database()
     treemap_type_data = {}
-    # cursor = cursor.execute(
-    #     "select level1,level2,sum(hours) from task_person_score where person_id=0 group by level1,level2 order by 1;")
     cursor.execute(
         "select level1,level2,sum(hours) from task where hours is not null and is_score=1 group by level1,level2 order by 1;")
     for row in cursor:
@@ -780,7 +801,7 @@ def get_treemap_data_from_task():
 
     treemap_dir_data = {}
     cursor.execute(
-        "select dir,sub_dir,sum(hours) from task_person_score where person_id=0 group by dir,sub_dir order by 1;")
+        "select skill_level1,skill_level2,sum(hours) from task_person_skill where person_id=0 group by skill_level1,skill_level2 order by 1;")
     for row in cursor:
         if row[0] not in treemap_dir_data.keys():
             treemap_dir_data[row[0]] = {
@@ -800,12 +821,12 @@ def get_sankey_data_from_task():
     nodes_depth = {'技术': 1, '行业': 2, '领域': 3, '技能': 4}
     nodes = []
 
-    cursor.execute("select distinct level2 from task_person_score;")
+    cursor.execute("select distinct level2 from task_person_skill;")
     for row in cursor:
         nodes.append({'name': row[0], 'depth': 0})
 
     cursor.execute(
-        "select distinct dir,sub_dir from task_person_score;")
+        "select distinct skill_level1,skill_level2 from task_person_skill;")
     for row in cursor:
         nodes.append({'name': row[0]+'-'+row[1], 'depth': nodes_depth[row[0]]})
 
@@ -814,7 +835,7 @@ def get_sankey_data_from_task():
     links = []
     # 考虑A到B、C、D
     cursor.execute(
-        "select level2,dir,sub_dir,sum(hours) from task_person_score where person_id=0 GROUP BY level2,sub_dir;")
+        "select level2,skill_level1,skill_level2,sum(hours) from task_person_skill where person_id=0 GROUP BY level2,skill_level2;")
     for row in cursor:
         links.append(
             {"source": row[0], "target": row[1]+'-'+row[2], 'value': row[3]})

@@ -11,7 +11,7 @@ from flask_httpauth import HTTPTokenAuth
 from base import base
 from data_collector import fund_collector
 from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting, fund_review
-from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting
+from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting, project
 from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 
@@ -1082,10 +1082,45 @@ def deletedft():
 def getdftdir():
     return json.dumps(dft.get_dft_option())
 
+# #####################################
+# 定义project的函数
+# #####################################
+
+
+@ app.route('/getproject')
+@auth.login_required
+def getproject():
+    res = project.get_project()
+    return json.dumps(res)
+
+
+@ app.route('/get_task_by_project_id', methods=['POST'])
+@auth.login_required
+def get_task_by_project_id():
+    json_data = json.loads(request.get_data())
+    project_id = json_data['project_id']
+    project_task = project.get_task_by_project_id(project_id)
+    project_pie_data = project.get_project_task_piechart_by_project_id(
+        project_id)
+    project_bar_data = project.get_project_task_barchart_by_project_id(
+        project_id)
+    return json.dumps({"project_task_data": project_task, 'project_pie_data': project_pie_data, 'project_bar_data': project_bar_data})
+
+
+@ app.route('/get_person_by_project_id', methods=['POST'])
+@auth.login_required
+def get_person_by_project_id():
+    json_data = json.loads(request.get_data())
+    project_id = json_data['project_id']
+    project_person = project.get_person_by_project_id(project_id)
+    project_person_graph = project.get_project_person_graph_data(project_id)
+    return json.dumps({"project_person_data": project_person, "project_person_graph": project_person_graph})
+
 
 # #####################################
 # 定义process的函数
 # #####################################
+
 
 @ app.route('/getposttabledata')
 @auth.login_required

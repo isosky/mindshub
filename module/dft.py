@@ -30,7 +30,7 @@ def add_dft(dftform, isbyupdate):
         return {"res": True}
     # 添加任务
     etime = dftform['reading_time'].split(' ')[0]
-    cursor.execute("insert into task (type,sub_type,task_name,etime,ftime,iswork,isfinish,status,is_score,hours) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", [
+    cursor.execute("insert into task (level1,level2,task_name,etime,ftime,iswork,isfinish,status,is_score,hours) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", [
         '学习', 'dft', dftform['title'], etime, dftform['reading_time'], 1, 1, 2, 1, dftform['hours']])
     conn.commit()
 
@@ -46,7 +46,8 @@ def add_dft(dftform, isbyupdate):
     #   关闭所有进程
     cursor.execute(
         "update task_process set isfinish=1,ftime=now() where task_id=%s", [task_id])
-    res = update_dft_task_process(cursor, task_id, dftform['tags'], dftform['hours'])
+    res = update_dft_task_process(
+        cursor, task_id, dftform['tags'], dftform['hours'])
     conn.commit()
     conn.close()
     return {"res": res}
@@ -141,7 +142,7 @@ def get_dft_option():
     conn, cursor = connect_database()
     res = []
     cursor.execute(
-        "select sub_dir,sum(hours) from task_person_score group by sub_dir order by 2 desc")
+        "select skill_level1,sum(hours) from task_person_skill group by skill_level1 order by 2 desc")
     for i in cursor:
         res.append({"value": i[0], "label": i[0]})
     conn.commit()
@@ -153,7 +154,7 @@ def update_dft_task_process(cur, task_id, tags, hours):
     # 得到所有的类型
     res = True
     cur.execute(
-        "select DISTINCT sub_dir ,dir from task_person_score order by 1;")
+        "select DISTINCT skill_level2 ,skill_level1 from task_person_skill order by 1;")
     sub_dict = {}
     for i in cur:
         sub_dict[i[0]] = i[1]
@@ -165,7 +166,7 @@ def update_dft_task_process(cur, task_id, tags, hours):
         else:
             dir = sub_dict[i]
         cur.execute(
-            "insert into task_person_score (task_id,person_id,type,sub_type,dir,sub_dir,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", [task_id, 0, '学习', 'dft', dir, i, hours, 5, 5])
+            "insert into task_person_score (task_id,person_id,level1,level2,skill_level1,skill_level2,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", [task_id, 0, '学习', 'dft', dir, i, hours, 5, 5])
     return res
 
 
@@ -178,7 +179,7 @@ def get_dft():
     for i in cursor:
         doc_appendix_num[i['doc_id']] = i['c']
 
-    cursor.execute("select task_id,hours from task where sub_type='dft'")
+    cursor.execute("select task_id,hours from task where level2='dft'")
     hours = {}
     for i in cursor:
         ti = dict(i)
@@ -202,10 +203,13 @@ def get_dft():
         else:
             temp_row['isread'] = True
         if temp_row['reading_time']:
-            temp_row['reading_time'] = temp_row['reading_time'].strftime('%Y-%m-%d')
+            temp_row['reading_time'] = temp_row['reading_time'].strftime(
+                '%Y-%m-%d')
         temp_row['appendixtable'] = get_appendix_by_doc_id(temp_row['doc_id'])
-        temp_row['add_time'] = temp_row['add_time'].strftime('%Y-%m-%d %H:%M:%S')
-        temp_row['publish_time'] = temp_row['publish_time'].strftime('%Y-%m-%d')
+        temp_row['add_time'] = temp_row['add_time'].strftime(
+            '%Y-%m-%d %H:%M:%S')
+        temp_row['publish_time'] = temp_row['publish_time'].strftime(
+            '%Y-%m-%d')
         temp_row['tagslabel'] = temp_row['tags']
         # print(temp_row['tags'])
         if temp_row['tags'] == '':

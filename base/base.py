@@ -80,7 +80,7 @@ def getnodirdata():
     conn, cursor = connect_database()
     temp = []
     cursor.execute(
-        "select dir,sub_dir from task_person_score where dir is null")
+        "select skill_level1,skill_level2 from task_person_skill where skill_level1 is null")
     for i in cursor:
         temp.append({'dir': i[0], 'sub_dir': i[1]})
     conn.commit()
