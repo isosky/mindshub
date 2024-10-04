@@ -24,7 +24,25 @@ def add_task(level1: str, level2: str, level3: str, task_name: str, etime: datet
                 "insert into task_person values (%s,%s)", [task_id, i])
     conn.commit()
     conn.close()
+    if level1 == '项目':
+        check_project(level1, level2, level3)
     return get_task_now()
+
+
+def check_project(level1, level2, level3):
+    conn, cursor = connect_database()
+    if level3 is None:
+        cursor.execute(
+            "select count(*) from project where level2=%s and level3 is null", [level2])
+    else:
+        cursor.execute(
+            "select count(*) from project where level2=%s and level3=%s ", [level2, level3])
+    count = cursor.fetchone()[0]
+    if count == 0:
+        cursor.execute("insert into project (level1, level2, level3,update_time) values (%s,%s,%s,now())", [
+                       level1, level2, level3])
+        conn.commit()
+    conn.close()
 
 
 def get_task_now():
@@ -230,11 +248,13 @@ def finish_task(task_id: int, finishtaskform: dict):
     # 格式化成2016-03-20 11:45:39形式
     ftime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     cursor.execute(
-        "select etime,level1,level2 from task where task_id=%s", [task_id])
+        "select etime,level1,level2,level3,project_id from task where task_id=%s", [task_id])
     temp = cursor.fetchone()
     etime = temp[0].strftime('%Y-%m-%d') + ' 23:59:59'
     level1 = temp[1]
     level2 = temp[2]
+    level3 = temp[3]
+    project_id = temp[4]
     etime_ts = time.mktime(time.strptime(etime, "%Y-%m-%d %H:%M:%S"))
     now_ts = time.time()
     if finishtaskform['desc'] == '':
@@ -260,22 +280,30 @@ def finish_task(task_id: int, finishtaskform: dict):
     cursor.execute(
         "update task_process set isfinish=1,ftime=now() where task_id=%s", [task_id])
 
-    tps = []
+    # TODO 规范前台命名skill_level1 skill_level2
     if finishtaskform['isok']:
-        temp_dir = []
+        tp_skill = []
         for i in finishtaskform['dirtable']:
-            temp_dir.append([i['dir'], i['sub_dir'], i['hours']])
-
-        for i in finishtaskform['peoples']:
-            for j in temp_dir:
-                tps.append([task_id, i['person_id'], level1,
-                            level2, j[0], j[1], j[2], i['score_activity'], i['score_critical']])
-
-        tps = [tuple(x) for x in tps]
-        # todo fix
+            for p in finishtaskform['peoples']:
+                tp_skill.append(
+                    [task_id, project_id, p['person_id'], i['dir'], i['sub_dir'], i['hours']])
+        tps = [tuple(x) for x in tp_skill]
         cursor.executemany(
-            "insert into task_person_score (task_id,person_id,level1,level2,skill_level1,skill_level2,hours,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", tps)
-
+            "insert into task_person_skill (task_id,project_id,person_id,skill_level1,skill_level2,hours) values (%s,%s,%s,%s,%s,%s)", tps)
+        conn.commit()
+        tp_score = []
+        for i in finishtaskform['peoples']:
+            tp_score.append([task_id, project_id, i['person_id'], level1,
+                             level2, level3, i['score_activity'], i['score_critical']])
+        tps = [tuple(x) for x in tp_score]
+        cursor.executemany(
+            "insert into task_person_score (task_id,project_id,person_id,level1,level2,level3,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s)", tps)
+        conn.commit()
+        cursor.execute(
+            "update task_person_skill a inner join person b on a.person_id=b.person_id set a.company=b.company,a.department=b.department,a.post=b.post where a.task_id=%s", [task_id])
+        cursor.execute(
+            "update task_person_score a inner join person b on a.person_id=b.person_id set a.company=b.company,a.department=b.department,a.post=b.post where a.task_id=%s", [task_id])
+        conn.commit()
     conn.commit()
     conn.close()
     temp = None
@@ -300,7 +328,7 @@ def update_project_by_task(task_id):
         cursor.execute(
             "select count(distinct person_id) from task a,task_person b where a.task_id=b.task_id  and  a.project_id = %s", [project_id])
         person_count = cursor.fetchone()[0]
-        cursor.execute("update project set task_count=%s ,person_count =%s where project_id=%s", [
+        cursor.execute("update project set task_count=%s ,person_count =%s,update_time=now() where project_id=%s", [
                        task_count, person_count, project_id])
         conn.commit()
     conn.close()
@@ -330,14 +358,13 @@ def delete_task_by_task_id(task_id: int):
 
 
 def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall, mode):
-    # TODO 还没测试
     # print(query, level1, level2, ftime,
     #       query_duration, isstime, isqueryall, mode)
     # print(ftime, '|', query_duration, '|', isstime)
     iswork = get_sys_params(2)
     conn, cursor = connect_database()
     query = '%'+query+'%'
-    sql = "select task_id,level1,level2,level3,task_name,etime,stime,isfinish,status from task where isabandon=0 and task_name like %s"
+    sql = "select task_id,level1,level2,level3,task_name,etime,stime,isfinish,status,project_id from task where isabandon=0 and task_name like %s"
     if not isqueryall:
         sql += " and isfinish = 0 "
     params_list = [query]
@@ -384,7 +411,7 @@ def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall
     person = count_task_person_number()
     result = []
     for row in cursor:
-        temp = {'task_id': row[0], 'level1': row[1], 'level2': row[2], 'level3': row[3],
+        temp = {'task_id': row[0], 'project_id': row[9], 'level1': row[1], 'level2': row[2], 'level3': row[3],
                 'task_name': row[4], 'etime': row[5].strftime('%m-%d'), 'stime': row[6].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[5].strftime('%Y-%m-%d'), 'isfinish': row[7], 'status': row[8]}
         if row[0] in process.keys():
             temp['num_process'] = process[row[0]]
@@ -454,10 +481,33 @@ def update_task(task_id, level1, level2, level3, task_name, etime, status):
             status = 1
     cursor.execute(
         "insert into task_his  select *,now() from task where task_id=%s", [task_id])
-    cursor.execute("update task set level1=%s, level2=%s ,level3=%s , task_name=%s , etime=%s,status=%s where task_id =%s ", [
-        level1, level2, level3, task_name, etime, status, task_id])
+    new_project_id = get_project_id_by_level(level2, level3)
+    cursor.execute("update task set level1=%s, level2=%s ,level3=%s ,project_id=%s, task_name=%s , etime=%s,status=%s where task_id =%s ", [
+        level1, level2, level3, new_project_id, task_name, etime, status, task_id])
     conn.commit()
     conn.close()
+
+
+def get_project_id_by_level(level2, level3):
+    conn, cursor = connect_database()
+    if level3 is None:
+        cursor.execute(
+            "select project_id from project where level2=%s and level3 is null", [level2])
+    else:
+        cursor.execute(
+            "select project_id from project where level2=%s and level3=%s ", [level2, level3])
+    project_id = cursor.fetchone()[0]
+    conn.close()
+    return project_id
+
+
+def get_project_id_by_task(task_id):
+    conn, cursor = connect_database()
+    cursor.execute(
+        "select project_id from task where task_id=%s", [task_id])
+    project_id = cursor.fetchone()[0]
+    conn.close()
+    return project_id
 
 
 def get_bar_data_from_task():
@@ -671,6 +721,7 @@ def get_person_by_task_id(task_id):
         all_person_data[row[0]] = {
             "all_activity": round(row[1], 2), "all_critical": round(row[2], 2)}
 
+    # TODO bug,没考虑3级的情况如何处理
     cursor.execute(
         "select person_id,AVG(score_activity) as sub_activity,AVG(score_critical) as sub_critical from task_person_score a , (select level1,level2 from task where  task_id=%s) b where a.level1=b.level1 and a.level2=b.level2 group by a.person_id;", [task_id])
     temp = cursor.fetchall()
@@ -682,12 +733,12 @@ def get_person_by_task_id(task_id):
     cursor.execute(
         "select person_id,company,person_name,person_py from person where person_id in (select person_id from task_person where task_id =%s)", [task_id])
     temp = cursor.fetchall()
-    if 0 in sub_person_data.keys():
+    if 1 in sub_person_data.keys():
         res = [{"person_id": 0, "company": 'all', "person_name": myself_name, 'person_py': 'wtr', 'score_activity': "5", 'score_critical': "5",
-                'all_activity': all_person_data[0]['all_activity'], 'all_critical': all_person_data[0]['all_critical'], 'sub_activity': sub_person_data[0]["sub_activity"], 'sub_critical': sub_person_data[0]["sub_critical"]}]
+                'all_activity': all_person_data[1]['all_activity'], 'all_critical': all_person_data[1]['all_critical'], 'sub_activity': sub_person_data[1]["sub_activity"], 'sub_critical': sub_person_data[1]["sub_critical"]}]
     else:
         res = [{"person_id": 0, "company": 'all', "person_name": myself_name, 'person_py': 'wtr', 'score_activity': "5", 'score_critical': "5",
-                'all_activity': all_person_data[0]['all_activity'], 'all_critical': all_person_data[0]['all_critical'], 'sub_activity': 5, 'sub_critical': 5}]
+                'all_activity': all_person_data[1]['all_activity'], 'all_critical': all_person_data[1]['all_critical'], 'sub_activity': 5, 'sub_critical': 5}]
     for row in temp:
         if row[0] in sub_person_data.keys():
             res.append({"person_id": row[0], "company": row[1], "person_name": row[2],
@@ -714,6 +765,7 @@ def get_sub_by_task_id(task_id):
 
 def add_task_person(task_id: int, person_id: list):
     conn, cursor = connect_database()
+    project_id = get_project_id_by_task(task_id)
     cursor.execute(
         "select person_id from task_person where task_id=%s ", [task_id])
     temp = list(cursor.fetchall())
@@ -724,7 +776,7 @@ def add_task_person(task_id: int, person_id: list):
             if i == 0:
                 continue
             cursor.execute(
-                "insert into task_person (task_id,person_id) values (%s,%s)", [task_id, i])
+                "insert into task_person (task_id,project_id,person_id) values (%s,%s,%s)", [task_id, project_id, i])
     conn.commit()
     conn.close()
     return get_person_by_task_id(task_id)
@@ -740,6 +792,7 @@ def delete_person_by_task_id(task_id, person_id):
     return res
 
 
+# TODO 感觉这个有个bug，推荐不了相关的人
 def get_recommended_person_by_type(level1, level2):
     conn, cursor = connect_database()
     cursor.execute(

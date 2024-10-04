@@ -1113,9 +1113,27 @@ def get_person_by_project_id():
     json_data = json.loads(request.get_data())
     project_id = json_data['project_id']
     project_person = project.get_person_by_project_id(project_id)
-    project_person_graph = project.get_project_person_graph_data(project_id)
+    project_person_graph = project.cal_project_person_graph_data(project_id)
     return json.dumps({"project_person_data": project_person, "project_person_graph": project_person_graph})
 
+
+@ app.route('/update_project_desc', methods=['POST'])
+@auth.login_required
+def update_project_desc():
+    json_data = json.loads(request.get_data())
+    project_id = json_data['project_id']
+    project_desc = json_data['project_desc']
+    project.update_project_desc(project_id, project_desc)
+    return json.dumps({"msg": 'ok'})
+
+
+@ app.route('/update_project_detail', methods=['POST'])
+@auth.login_required
+def update_project_detail():
+    json_data = json.loads(request.get_data())
+    project_id = json_data['project_id']
+    project_detail = project.update_project_detail(project_id)
+    return json.dumps(project_detail)
 
 # #####################################
 # 定义process的函数

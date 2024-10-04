@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, date
 import time
+import json
 
 from base.base import connect_database, get_base_type, get_sys_params
 
@@ -24,6 +25,17 @@ def get_project():
     res = formatdate(res)
     conn.close()
     return res
+
+
+def update_project_desc(project_id, project_desc):
+    conn, cursor = connect_database()
+    cursor.execute(
+        "insert into project_detail (project_id,project_desc) select project_id,project_desc from project where project_id=%s", [project_id])
+    conn.commit()
+    cursor.execute("update project set project_desc =%s,update_time=now() where project_id=%s", [
+                   project_desc, project_id])
+    conn.commit()
+    conn.close()
 
 
 def get_task_by_project_id(project_id):
@@ -69,7 +81,32 @@ def get_person_by_project_id(project_id):
     return res
 
 
+def cal_project_graph():
+    conn, cursor = connect_database()
+    # todo test
+    cursor.execute(
+        "select project_id from project where project_id not in (select project_id from project_graph_json)")
+    for i in cursor:
+        print('初始处理：'+str(i))
+        cal_project_person_graph_data(i[0])
+    cursor.execute(
+        "select a.project_id from project_graph_json a,task b where a.project_id=b.project_id and b.ftime>a.update_time;")
+    for i in cursor:
+        print('增量处理：'+str(i))
+        cal_project_person_graph_data(i[0])
+    conn.close()
+
+
 def get_project_person_graph_data(project_id):
+    conn, cursor = connect_database()
+    cursor.execute(
+        "select nodes,links,categories,legend from project_graph_json where project_id=%s", [project_id])
+    temp = cursor.fetchone()
+    conn.close()
+    return {'nodes': json.loads(temp[0]), 'links': json.loads(temp[1]), 'categories': json.loads(temp[2]), 'legend': json.loads(temp[3])}
+
+
+def cal_project_person_graph_data(project_id):
     conn, cursor = connect_database()
     cursor.execute(
         "select count(distinct task_id) from task_person_score where project_id=%s", [project_id])
@@ -147,7 +184,18 @@ def get_project_person_graph_data(project_id):
     categories.extend([{'name': x} for x in _temp_dict])
     legend = ['项目']
     legend.extend(list(_temp_dict.keys()))
-    return {'nodes': nodes, 'links': links, 'categories': categories, 'legend': legend}
+    cursor.execute(
+        "select count(*) from project_graph_json where project_id=%s", [project_id])
+    if cursor.fetchone()[0] > 0:
+        cursor.execute("update project_graph_json set nodes=%s,links=%s,categories=%s,legend=%s,update_time=now() where project_id=%s", [
+                       json.dumps(nodes), json.dumps(links), json.dumps(categories), json.dumps(legend), project_id])
+        conn.commit()
+    else:
+        cursor.execute("insert into project_graph_json (project_id,nodes,links,categories,legend) values (%s,%s,%s,%s,%s) ", [
+                       project_id, json.dumps(nodes), json.dumps(links), json.dumps(categories), json.dumps(legend)])
+    conn.commit()
+    conn.close()
+    # return {'nodes': nodes, 'links': links, 'categories': categories, 'legend': legend}
 
 
 def get_project_task_barchart_by_project_id(project_id):
@@ -206,3 +254,17 @@ def get_project_task_piechart_by_project_id(project_id):
 
     conn.close()
     return {'pie_summary_data': pie_summary_data, 'percent': [finish_percent, overdue_percent], 'sum_task': sum_task}
+
+
+def update_project_detail(project_id):
+    conn, cursor = connect_database()
+    cursor.execute(
+        "select level1,level2,level3,project_desc,create_time,update_time from project where project_id=%s", [project_id])
+    temp = cursor.fetchone()
+    project_name = '-'.join(['' if x is None else x for x in temp[:3]])
+    # print(project_name)
+    project_start_time = temp[4].strftime('%Y-%m-%d %H:%M:%S')
+    project_last_time = temp[5].strftime('%Y-%m-%d %H:%M:%S')
+    project_desc = temp[3]
+    conn.close()
+    return {'project_name': project_name, 'project_start_time': project_start_time, 'project_last_time': project_last_time, 'project_desc': project_desc}
