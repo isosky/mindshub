@@ -1113,7 +1113,7 @@ def get_person_by_project_id():
     json_data = json.loads(request.get_data())
     project_id = json_data['project_id']
     project_person = project.get_person_by_project_id(project_id)
-    project_person_graph = project.cal_project_person_graph_data(project_id)
+    project_person_graph = project.get_project_person_graph_data(project_id)
     return json.dumps({"project_person_data": project_person, "project_person_graph": project_person_graph})
 
 
