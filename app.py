@@ -247,6 +247,7 @@ def updateprocess():
 
 @app.route('/initschedule')
 def initschedule():
+    project.cal_project_graph()
     return json.dumps(schedule.run_schedule())
 
 
