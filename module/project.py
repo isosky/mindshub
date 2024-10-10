@@ -85,12 +85,12 @@ def cal_project_graph():
     conn, cursor = connect_database()
     # todo test
     cursor.execute(
-        "select project_id from project where project_id not in (select project_id from project_graph_json)")
+        "select distinct project_id from project where project_id not in (select project_id from project_graph_json)")
     for i in cursor:
         print('初始处理：'+str(i))
         cal_project_person_graph_data(i[0])
     cursor.execute(
-        "select a.project_id from project_graph_json a,task b where a.project_id=b.project_id and b.ftime>a.update_time;")
+        "select distinct a.project_id from project_graph_json a,task b where a.project_id=b.project_id and b.ftime>a.update_time;")
     for i in cursor:
         print('增量处理：'+str(i))
         cal_project_person_graph_data(i[0])

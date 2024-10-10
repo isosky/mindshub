@@ -312,14 +312,19 @@ def finish_task(task_id: int, finishtaskform: dict):
 
     # 完成项目相关信息的录入
     if level1 == '项目':
-        update_project_by_task(task_id)
+        update_project_by_task(level2, level3)
 
     return temp
 
 
-def update_project_by_task(task_id):
+def update_project_by_task(level2, level3):
     conn, cursor = connect_database()
-    cursor.execute("select project_id from task where task_id =%s", [task_id])
+    if level3 is not None:
+        cursor.execute("select project_id from project where level2=%s and level3=%s", [
+                       level2, level3])
+    else:
+        cursor.execute(
+            "select project_id from project where level2=%s and level3 is null", [level2])
     project_id = cursor.fetchone()[0]
     if project_id:
         cursor.execute(
