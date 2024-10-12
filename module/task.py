@@ -25,23 +25,29 @@ def add_task(level1: str, level2: str, level3: str, task_name: str, etime: datet
     conn.commit()
     conn.close()
     if level1 == '项目':
-        check_project(level1, level2, level3)
+        check_project(level1, level2, level3, task_id)
     return get_task_now()
 
 
-def check_project(level1, level2, level3):
+def check_project(level1, level2, level3, task_id):
     conn, cursor = connect_database()
-    if level3 is None:
+    if level3 is None or level3 == '':
         cursor.execute(
-            "select count(*) from project where level2=%s and level3 is null", [level2])
+            "select project_id from project where level2=%s and level3 is null", [level2])
     else:
         cursor.execute(
-            "select count(*) from project where level2=%s and level3=%s ", [level2, level3])
-    count = cursor.fetchone()[0]
-    if count == 0:
+            "select project_id from project where level2=%s and level3=%s ", [level2, level3])
+    new_project_id = cursor.fetchone()
+    if new_project_id is None:
         cursor.execute("insert into project (level1, level2, level3,update_time) values (%s,%s,%s,now())", [
                        level1, level2, level3])
+        new_project_id = cursor.lastrowid
         conn.commit()
+    else:
+        new_project_id = new_project_id[0]
+    cursor.execute("update task set project_id=%s where task_id=%s", [
+                   new_project_id, task_id])
+    conn.commit()
     conn.close()
 
 
@@ -310,14 +316,14 @@ def finish_task(task_id: int, finishtaskform: dict):
     if level2 == '出行' or level2 == '出差':
         temp = init_travel()
 
-    # 完成项目相关信息的录入
+    # 完成项目相关信息的录入 TODO bug 不知道为啥没添加project_id
     if level1 == '项目':
-        update_project_by_task(level2, level3)
+        update_project_by_task(level2, level3, task_id)
 
     return temp
 
 
-def update_project_by_task(level2, level3):
+def update_project_by_task(level2, level3, task_id):
     conn, cursor = connect_database()
     if level3 is not None:
         cursor.execute("select project_id from project where level2=%s and level3=%s", [
@@ -333,6 +339,8 @@ def update_project_by_task(level2, level3):
         cursor.execute(
             "select count(distinct person_id) from task a,task_person b where a.task_id=b.task_id  and  a.project_id = %s", [project_id])
         person_count = cursor.fetchone()[0]
+        cursor.execute("update task set project_id=%s where task_id=%s", [
+                       project_id, task_id])
         cursor.execute("update project set task_count=%s ,person_count =%s,update_time=now() where project_id=%s", [
                        task_count, person_count, project_id])
         conn.commit()
