@@ -45,6 +45,7 @@ def check_project(level1, level2, level3, task_id):
         conn.commit()
     else:
         new_project_id = new_project_id[0]
+    cursor.fetchall()
     cursor.execute("update task set project_id=%s where task_id=%s", [
                    new_project_id, task_id])
     conn.commit()
