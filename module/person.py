@@ -113,7 +113,7 @@ def add_person(company, department, person_name, post, force: bool):
         return {"msg": '姓名重复'}
     content = pinyin(person_name, style=Style.FIRST_LETTER)
     person_py = ''.join([x[0] for x in content])
-    cursor.execute("insert into person (company,department,person_name,post,person_py) values (%s,%s,%s,%s,%s)", [
+    cursor.execute("insert into person (company,department,person_name,post,person_py,update_time) values (%s,%s,%s,%s,%s,now())", [
         company, department, person_name, post, person_py])
     conn.commit()
     conn.close()
