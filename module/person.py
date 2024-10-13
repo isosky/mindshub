@@ -31,19 +31,26 @@ def getpersonoptions():
     for i in cursor:
         company_options.append({'value': i[0], 'label': i[0]})
 
-    department_options = []
+    company_department_options = {}
     cursor.execute(
-        "select department,count(*) from person group by department order by 2 desc")
-    for i in cursor:
-        department_options.append({'value': i[0], 'label': i[0]})
+        "select company,department,count(*) from person group by company,department order by 1,2 desc")
+    for row in cursor:
+        if row[0] not in company_department_options:
+            company_department_options[row[0]] = [row[1]]
+        else:
+            company_department_options[row[0]].append(row[1])
 
-    post_options = []
+    department_post_options = {}
     cursor.execute(
-        "select post,count(*) from person group by post order by 2 desc")
-    for i in cursor:
-        post_options.append({'value': i[0], 'label': i[0]})
+        "select department,post,count(*) from person group by department,post order by 1,2 desc")
+    for row in cursor:
+        if row[0] not in department_post_options:
+            department_post_options[row[0]] = [row[1]]
+        else:
+            department_post_options[row[0]].append(row[1])
+
     conn.close()
-    return {"post_options": post_options, "department_options": department_options, "company_options": company_options}
+    return {"company_department_options": company_department_options, "department_post_options": department_post_options, "company_options": company_options}
 
 
 def get_person():
