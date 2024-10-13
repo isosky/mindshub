@@ -165,7 +165,7 @@ def update_person(company, department, person_name, post, person_id):
     cursor.execute(
         "insert into person_his (person_id,person_name,company,department,post,person_py,update_time) select person_id,person_name,company,department,post,person_py,now() from person where person_id=%s", [person_id])
     conn.commit()
-    cursor.execute("update person set company=%s, department=%s, person_name=%s, post=%s,person_py=%s where person_id=%s", [
+    cursor.execute("update person set company=%s, department=%s, person_name=%s, post=%s,person_py=%s,update_time = now() where person_id=%s", [
                    company, department, person_name, post, person_py, person_id])
     conn.commit()
     conn.close()
