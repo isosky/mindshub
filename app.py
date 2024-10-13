@@ -534,6 +534,20 @@ def addperson():
     return json.dumps(temp)
 
 
+@ app.route('/updateperson', methods=['POST'])
+@auth.login_required
+def updateperson():
+    json_data = json.loads(request.get_data())
+    company = json_data['company']
+    department = json_data['department']
+    person_name = json_data['person_name']
+    post = json_data['post']
+    person_id = json_data['person_id']
+    temp = person.update_person(
+        company, department, person_name, post, person_id)
+    return json.dumps(temp)
+
+
 @ app.route('/deleteperson', methods=['POST'])
 @auth.login_required
 def deleteperson():
@@ -586,9 +600,43 @@ def deletetaskperson():
 @auth.login_required
 def getrecommendperson():
     json_data = json.loads(request.get_data())
-    type = json_data['type']
-    sub_type = json_data['sub_type']
-    temp = task.get_recommended_person_by_type(type, sub_type)
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    temp = task.get_recommended_person_by_type(level1, level2)
+    return json.dumps(temp)
+
+
+@ app.route('/getpersonprofile', methods=['POST'])
+@auth.login_required
+def getpersonprofile():
+    json_data = json.loads(request.get_data())
+    person_profile_id = json_data['person_profile_id']
+    temp = person.get_person_profile(person_profile_id)
+    return json.dumps(temp)
+
+
+@ app.route('/getpersontask', methods=['POST'])
+@auth.login_required
+def getpersontask():
+    json_data = json.loads(request.get_data())
+    person_profile_id = json_data['person_profile_id']
+    temp = person.get_person_task(person_profile_id)
+    return json.dumps(temp)
+
+
+@ app.route('/addpersonprofile', methods=['POST'])
+@auth.login_required
+def addpersonprofile():
+    json_data = json.loads(request.get_data())
+    person_profile_start = json_data['person_profile_start']
+    person_profile_end = json_data['person_profile_end']
+    person_profile_company = json_data['person_profile_company']
+    person_profile_department = json_data['person_profile_department']
+    person_profile_post = json_data['person_profile_post']
+    person_profile_id = json_data['person_profile_id']
+    person_profile_name = json_data['person_profile_name']
+    temp = person.add_person_profile(
+        person_profile_start, person_profile_end, person_profile_company, person_profile_department, person_profile_post, person_profile_id, person_profile_name)
     return json.dumps(temp)
 
 

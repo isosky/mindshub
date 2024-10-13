@@ -1,8 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from datetime import datetime, date
 from pypinyin import Style, pinyin
 from base.base import connect_database
+
+
+def formatdate(data: dict):
+    for i in data:
+        for k, v in i.items():
+            if isinstance(v, date):
+                i[k] = v.strftime('%Y-%m-%d')
+            if isinstance(v, datetime):
+                i[k] = v.strftime('%Y-%m-%d %H:%M:%S')
+    return data
 
 
 def delete_person(personid):
@@ -39,12 +50,45 @@ def get_person():
     conn, cursor = connect_database()
     temp = []
     cursor.execute(
-        "select person_id,company,department,person_name,post,person_py from person order by 5 ")
+        "select person_id,company,department,person_name,post,person_py from person order by update_time desc ")
     for i in cursor:
         temp.append({'person_id': i[0], 'company': i[1], 'department': i[2],
                      'person_name': i[3], 'post': i[4], 'person_py': i[5]})
     conn.commit()
     conn.close()
+    return temp
+
+
+def add_person_profile(person_profile_start, person_profile_end, person_profile_company, person_profile_department, person_profile_post, person_id, person_name):
+    conn, cursor = connect_database()
+    person_profile_start = person_profile_start.replace("-", "")
+    person_profile_end = person_profile_end.replace("-", "")
+    cursor.execute("insert into person_profile ( person_id, person_name,start_date, end_date, company, department, post,update_time) values (%s,%s,%s,%s,%s,%s,%s,now())", [
+                   person_id, person_name, person_profile_start, person_profile_end, person_profile_company, person_profile_department, person_profile_post])
+    conn.commit()
+    return {"msg": True}
+
+
+def get_person_profile(person_id):
+    conn, cursor = connect_database(dictionary=True)
+    cursor.execute(
+        "select * from person_profile where person_id=%s", [person_id])
+    temp = cursor.fetchall()
+    conn.close()
+    temp = formatdate(temp)
+    return temp
+
+
+def get_person_task(person_id):
+    conn, cursor = connect_database(dictionary=True)
+    cursor.execute(
+        "select level2,level3,min(create_time) as start_time,max(create_time) as end_time,round(avg(score_activity),2) as score_activity,round(avg(score_critical),2) as score_critical, count(distinct task_id) as task_number from task_person_score where person_id=%s group by level2,level3 order by task_number desc;", [person_id])
+    temp = cursor.fetchall()
+    conn.close()
+    for i in temp:
+        for k, v in i.items():
+            if isinstance(v, date) or isinstance(v, datetime):
+                i[k] = v.strftime('%Y-%m-%d')
     return temp
 
 
@@ -114,10 +158,20 @@ def get_scatter_data_from_task(type: str, sub_type: str, person_id: int) -> dict
     return {'scatter_data': scatter_data}
 
 
-# 假设您已经有一个get_db_connection()函数来获取数据库连接
-# def get_db_connection():
-#     # 返回数据库连接
-#     pass
+def update_person(company, department, person_name, post, person_id):
+    conn, cursor = connect_database()
+    content = pinyin(person_name, style=Style.FIRST_LETTER)
+    person_py = ''.join([x[0] for x in content])
+    cursor.execute(
+        "insert into person_his (person_id,person_name,company,department,post,person_py,update_time) select person_id,person_name,company,department,post,person_py,now() from person where person_id=%s", [person_id])
+    conn.commit()
+    cursor.execute("update person set company=%s, department=%s, person_name=%s, post=%s,person_py=%s where person_id=%s", [
+                   company, department, person_name, post, person_py, person_id])
+    conn.commit()
+    conn.close()
+    # TODO 需要看是不是要修改task_person那些表
+    return {"msg": True}
+
 
 def create_education_info(person_id, school_name, major, degree_obtained, enrollment_year, graduation_year, education_level):
     conn, cursor = connect_database()

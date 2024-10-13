@@ -184,12 +184,12 @@ def get_calendar_data_from_task():
     print(start_time, end_time)
     date_list = generate_date_list(start_time, end_time)
 
-    finish_task = {}
+    finish_task_data = {}
     cursor.execute(
         "select  DATE_FORMAT(ftime,'%Y-%m-%d'),count(*) from task where isfinish =1 and isabandon=0 and iswork>=%s and ftime>=%s and status in (2,4)  group by  DATE_FORMAT(ftime,'%Y-%m-%d')", [iswork, start_time])
     for row in cursor:
-        finish_task[row[0]] = row[1]
-    # print(finish_task)
+        finish_task_data[row[0]] = row[1]
+    # print(finish_task_data)
 
     todo_task = {}
     cursor.execute(
@@ -217,17 +217,17 @@ def get_calendar_data_from_task():
     result = []
     result_desc = []
     for i in date_list:
-        if i not in finish_task:
-            finish_task[i] = 0
+        if i not in finish_task_data:
+            finish_task_data[i] = 0
         if i not in todo_task:
             todo_task[i] = 0
         if i not in overdue_task:
             overdue_task[i] = 0
         if i not in normal_task:
             normal_task[i] = 0
-        result.append([i, finish_task[i]])
-        result_desc.append([i, str(finish_task[i])+'/' +
-                            str(todo_task[i]), str(overdue_task[i]) + '/' + str(normal_task[i]) + '/' + str(finish_task[i] - overdue_task[i] - normal_task[i])])
+        result.append([i, finish_task_data[i]])
+        result_desc.append([i, str(finish_task_data[i])+'/' +
+                            str(todo_task[i]), str(overdue_task[i]) + '/' + str(normal_task[i]) + '/' + str(finish_task_data[i] - overdue_task[i] - normal_task[i])])
     # print(result)
 
     cursor.close()
@@ -282,7 +282,6 @@ def finish_task(task_id: int, finishtaskform: dict):
         cursor.execute("insert into task_process (task_id,process_name,isfinish) values (%s,%s,1)", [
             task_id, input_finish])
     conn.commit()
-    #   关闭所有进程
     cursor.execute(
         "update task_process set isfinish=1,ftime=now() where task_id=%s", [task_id])
 
@@ -301,6 +300,9 @@ def finish_task(task_id: int, finishtaskform: dict):
         for i in finishtaskform['peoples']:
             tp_score.append([task_id, project_id, i['person_id'], level1,
                              level2, level3, i['score_activity'], i['score_critical']])
+            cursor.execute("update person set update_time=now() where person_id = %s", [
+                           i['person_id']])
+        conn.commit()
         tps = [tuple(x) for x in tp_score]
         cursor.executemany(
             "insert into task_person_score (task_id,project_id,person_id,level1,level2,level3,score_activity,score_critical) values (%s,%s,%s,%s,%s,%s,%s,%s)", tps)
@@ -843,14 +845,14 @@ def get_task_by_calendar():
     iswork = get_sys_params(2)
     start_time = '2021-01-01'
     conn, cursor = connect_database()
-    finish_task = []
+    finish_task_data = []
     cursor.execute(
         "select DATE_FORMAT(ftime,'%Y-%m-%d'),count(*) from task where isfinish =1 and isabandon=0 and iswork>=%s and ftime>=%s group by DATE_FORMAT(ftime,'%Y-%m-%d')", [iswork, start_time])
     temp_data = cursor.fetchall()
     for row in temp_data:
-        finish_task.append([row[0], row[1]])
+        finish_task_data.append([row[0], row[1]])
     conn.close()
-    return {"calendar_data": finish_task}
+    return {"calendar_data": finish_task_data}
 
 
 def get_treemap_data_from_task():
