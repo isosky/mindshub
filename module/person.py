@@ -105,21 +105,18 @@ def get_person_count():
 
 
 def add_person(company, department, person_name, post, force: bool):
-    try:
-        conn, cursor = connect_database()
-        cursor.execute(
-            "select count(*) from person where company=%s and person_name=%s", [company, person_name])
-        temp = cursor.fetchone()[0]
-        if temp > 0 and not force:
-            return {"msg": '姓名重复'}
-        content = pinyin(person_name, style=Style.FIRST_LETTER)
-        person_py = ''.join([x[0] for x in content])
-        cursor.execute("insert into person (company,department,person_name,post,person_py) values (%s,%s,%s,%s,%s)", [
-            company, department, person_name, post, person_py])
-        conn.commit()
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return {"msg": False}
+    conn, cursor = connect_database()
+    cursor.execute(
+        "select count(*) from person where company=%s and person_name=%s", [company, person_name])
+    temp = cursor.fetchone()[0]
+    if temp > 0 and not force:
+        return {"msg": '姓名重复'}
+    content = pinyin(person_name, style=Style.FIRST_LETTER)
+    person_py = ''.join([x[0] for x in content])
+    cursor.execute("insert into person (company,department,person_name,post,person_py) values (%s,%s,%s,%s,%s)", [
+        company, department, person_name, post, person_py])
+    conn.commit()
+    conn.close()
     return {"msg": True}
 
 
