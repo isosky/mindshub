@@ -164,7 +164,9 @@ def updatetask():
     task_name = json_data['task_name']
     etime = json_data['etime']
     status = json_data['dustatus']
-    task.update_task(task_id, level1, level2, level3, task_name, etime, status)
+    dftime = json_data['dftime']
+    task.update_task(task_id, level1, level2, level3,
+                     task_name, etime, status, dftime)
     return json.dumps({'result': True})
 
 

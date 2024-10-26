@@ -380,7 +380,7 @@ def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall
     iswork = get_sys_params(2)
     conn, cursor = connect_database()
     query = '%'+query+'%'
-    sql = "select task_id,level1,level2,level3,task_name,etime,stime,isfinish,status,project_id from task where isabandon=0 and task_name like %s"
+    sql = "select task_id,level1,level2,level3,task_name,etime,stime,isfinish,status,project_id,ftime from task where isabandon=0 and task_name like %s"
     if not isqueryall:
         sql += " and isfinish = 0 "
     params_list = [query]
@@ -427,8 +427,12 @@ def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall
     person = count_task_person_number()
     result = []
     for row in cursor:
+        if row[10] is None:
+            dftime = ''
+        else:
+            dftime = row[10].strftime('%Y-%m-%d %H:%M:%S')
         temp = {'task_id': row[0], 'project_id': row[9], 'level1': row[1], 'level2': row[2], 'level3': row[3],
-                'task_name': row[4], 'etime': row[5].strftime('%m-%d'), 'stime': row[6].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[5].strftime('%Y-%m-%d'), 'isfinish': row[7], 'status': row[8]}
+                'task_name': row[4], 'etime': row[5].strftime('%m-%d'), 'stime': row[6].strftime('%Y-%m-%d %H:%M:%S'), 'tetime': row[5].strftime('%Y-%m-%d'), 'isfinish': row[7], 'status': row[8], 'dftime': dftime}
         if row[0] in process.keys():
             temp['num_process'] = process[row[0]]
         else:
@@ -484,7 +488,7 @@ def get_task_by_type(level1, main, sub):
     return res
 
 
-def update_task(task_id, level1, level2, level3, task_name, etime, status):
+def update_task(task_id, level1, level2, level3, task_name, etime, status, dftime):
     conn, cursor = connect_database()
     # print(task_id, level2, task_name, etime)
     if status == 1 or status == 3:
@@ -501,12 +505,13 @@ def update_task(task_id, level1, level2, level3, task_name, etime, status):
         new_project_id = get_project_id_by_level(level2, level3)
     else:
         new_project_id = None
-    cursor.execute("update task set level1=%s, level2=%s ,level3=%s ,project_id=%s, task_name=%s , etime=%s,status=%s where task_id =%s ", [
-        level1, level2, level3, new_project_id, task_name, etime, status, task_id])
+    cursor.execute("update task set level1=%s, level2=%s ,level3=%s ,project_id=%s, task_name=%s , etime=%s,status=%s,ftime=%s where task_id =%s ", [
+        level1, level2, level3, new_project_id, task_name, etime, status, dftime, task_id])
     conn.commit()
     conn.close()
 
 
+# TODO 因为三级前台传‘’，不是none，导致三级查询总是空，前台校验下，后台统一处理下，不要变成两种情况了，如果是项目，三级必填。
 def get_project_id_by_level(level2, level3):
     conn, cursor = connect_database()
     if level3 is None:
