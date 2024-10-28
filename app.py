@@ -11,7 +11,7 @@ from flask_httpauth import HTTPTokenAuth
 from base import base
 from data_collector import fund_collector
 from fund import fund_base, fund_estimate, fund_order, fund_total, fund_setting, fund_review
-from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting, project
+from module import cycling, dft, person, schedule, task, travel, nga_post, nga_setting, project, transaction
 from logging import Formatter
 from logging.handlers import TimedRotatingFileHandler
 
@@ -1132,6 +1132,46 @@ def deletedft():
 @auth.login_required
 def getdftdir():
     return json.dumps(dft.get_dft_option())
+
+
+# #####################################
+# 定义transaction的函数
+# #####################################
+
+
+@ app.route('/get_transaction', methods=['POST'])
+@auth.login_required
+def get_transaction():
+    json_data = json.loads(request.get_data())
+    query_all = json_data['query_all']
+    res = transaction.get_transaction(query_all)
+    return json.dumps(res)
+
+
+@ app.route('/get_transaction_option')
+@auth.login_required
+def get_transaction_option():
+    res = transaction.get_transaction_option()
+    return json.dumps(res)
+
+
+@ app.route('/update_transaction', methods=['POST'])
+@auth.login_required
+def update_transaction():
+    json_data = json.loads(request.get_data())
+    # print(json_data)
+    transaction_id = json_data['d_transaction_id']
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    level3 = json_data['level3']
+    d_data_status = json_data['d_data_status']
+    merge_data = json_data['merge_data']
+    counterparty = json_data['d_counterparty']
+    product = json_data['d_product']
+    res = transaction.update_transaction(
+        transaction_id, level1, level2, level3, d_data_status, merge_data, counterparty)
+    return json.dumps({"msg": 'ok'})
+
 
 # #####################################
 # 定义project的函数
