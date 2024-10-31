@@ -505,6 +505,8 @@ def update_task(task_id, level1, level2, level3, task_name, etime, status, dftim
         new_project_id = get_project_id_by_level(level2, level3)
     else:
         new_project_id = None
+    if dftime == '':
+        dftime = None
     cursor.execute("update task set level1=%s, level2=%s ,level3=%s ,project_id=%s, task_name=%s , etime=%s,status=%s,ftime=%s where task_id =%s ", [
         level1, level2, level3, new_project_id, task_name, etime, status, dftime, task_id])
     conn.commit()
