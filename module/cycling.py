@@ -30,10 +30,13 @@ def add_cycling(cycdata):
     print(_data)
     conn, cursor = connect_database()
     try:
-        cursor.executemany("insert into cycling_records (strava_id,`date`,`name`,stage,avg_hr,max_hr,np,ftp,weight,avg_cadence,adr,remark) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", _data)
+        cursor.executemany(
+            "insert into cycling_records (strava_id,`date`,`name`,stage,avg_hr,max_hr,np,ftp,weight,avg_cadence,adr,remark) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", _data)
         conn.commit()
-        cursor.execute("update cycling_records set intensity=round(np/ftp, 2)  where intensity is null;")
-        cursor.execute("update cycling_records set efficiency=round(np/avg_hr, 2) where efficiency is null;")
+        cursor.execute(
+            "update cycling_records set intensity=round(np/ftp, 2)  where intensity is null;")
+        cursor.execute(
+            "update cycling_records set efficiency=round(np/avg_hr, 2) where efficiency is null;")
         conn.commit()
     except:
         return False
@@ -55,8 +58,10 @@ def get_cycling_name():
 # 心率、踏频放一个双坐标，折线
 def get_cycling(cycname=''):
     conn, cursor = connect_database(dictionary=True)
-    cursor.execute("update cycling_records set intensity=round(np/ftp, 2)  where intensity is null;")
-    cursor.execute("update cycling_records set efficiency=round(np/avg_hr, 2) where efficiency is null;")
+    cursor.execute(
+        "update cycling_records set intensity=round(np/ftp, 2)  where intensity is null;")
+    cursor.execute(
+        "update cycling_records set efficiency=round(np/avg_hr, 2) where efficiency is null;")
     conn.commit()
     base_sql = 'select * from cycling_records'
     last_sql = ' order by date desc'
@@ -94,6 +99,36 @@ def get_cycling(cycname=''):
             adr = [x['adr'] for x in _tabledata]
     conn.close()
     return [tabledata, yaxis, avg_hr, max_hr, avg_cadence, intensity, efficiency, adr]
+
+
+def get_strava_summary():
+    conn, cursor = connect_database()
+    cursor.execute("SELECT date(start_date) as start_date,round(sum(distance)/1000,2) as distance,sum(total_elevation_gain) as teg  FROM cycling_strava WHERE YEAR(start_date) = 2024 and type='Ride' group by date(start_date) order by date(start_date);")
+    cycling_datas = {}
+    for _row in cursor:
+        cycling_datas[_row[0]] = [_row[1], _row[2]]
+# 初始化一个空列表来存储日期
+    dates = []
+
+    # 循环遍历2024年的每一天
+    for month in range(1, 13):
+        for day in range(1, 32):
+            try:
+                # 尝试创建一个日期对象
+                _date = date(2024, month, day)
+                # 如果日期有效，则添加到列表中
+                dates.append(_date)
+            except ValueError:
+                # 如果日期无效（例如，2月30日），则忽略
+                continue
+    distances = []
+    for _date in dates:
+        if _date in cycling_datas:
+            distances.append(cycling_datas[_date][0])
+        else:
+            distances.append(0)
+    dates = [x.strftime('%Y-%m-%d') for x in dates]
+    return dates, distances
 
 
 # def get_cycling():

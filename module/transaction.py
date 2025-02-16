@@ -43,25 +43,47 @@ def update_transaction(transaction_id, level1, level2, level3, d_data_status, me
 def get_transaction_option():
     conn, cursor = connect_database()
     cursor.execute(
-        "select level1,level2,level3 from transaction_records where data_status!=2 and level1 is not null group by level1,level2,level3 order by count(*) desc;")
-    level1 = []
-    level1_option = []
-    level1_level2_option = {}
-    level2_level3_option = {}
+        "select level1,level2,level3 from transaction_records where data_status!=2 and level1 is not null and transaction_direction='支出' group by level1,level2,level3 order by count(*) desc;")
+    pay_level1 = []
+    pay_level1_option = []
+    pay_level1_level2_option = {}
+    pay_level2_level3_option = {}
     for i in cursor:
         # print(i)
         # # 判断一级是否在列表中
-        if i[0] not in level1:
-            level1.append(i[0])
-            level1_option.append({'value': i[0], 'label': i[0]})
-            level1_level2_option[i[0]] = [i[1]]
-            level2_level3_option[i[1]] = [i[2]]
+        if i[0] not in pay_level1:
+            pay_level1.append(i[0])
+            pay_level1_option.append({'value': i[0], 'label': i[0]})
+            pay_level1_level2_option[i[0]] = [i[1]]
+            pay_level2_level3_option[i[1]] = [i[2]]
         else:
-            if i[1] not in level1_level2_option[i[0]]:
-                level1_level2_option[i[0]].append(i[1])
-                level2_level3_option[i[1]] = [i[2]]
+            if i[1] not in pay_level1_level2_option[i[0]]:
+                pay_level1_level2_option[i[0]].append(i[1])
+                pay_level2_level3_option[i[1]] = [i[2]]
             else:
-                if i[2] not in level2_level3_option[i[1]]:
-                    level2_level3_option[i[1]].append(i[2])
+                if i[2] not in pay_level2_level3_option[i[1]]:
+                    pay_level2_level3_option[i[1]].append(i[2])
+
+    cursor.execute(
+        "select level1,level2,level3 from transaction_records where data_status!=2 and level1 is not null and transaction_direction='收入' group by level1,level2,level3 order by count(*) desc;")
+    income_level1 = []
+    income_level1_option = []
+    income_level1_level2_option = {}
+    income_level2_level3_option = {}
+    for i in cursor:
+        # print(i)
+        # # 判断一级是否在列表中
+        if i[0] not in income_level1:
+            income_level1.append(i[0])
+            income_level1_option.append({'value': i[0], 'label': i[0]})
+            income_level1_level2_option[i[0]] = [i[1]]
+            income_level2_level3_option[i[1]] = [i[2]]
+        else:
+            if i[1] not in income_level1_level2_option[i[0]]:
+                income_level1_level2_option[i[0]].append(i[1])
+                income_level2_level3_option[i[1]] = [i[2]]
+            else:
+                if i[2] not in income_level2_level3_option[i[1]]:
+                    income_level2_level3_option[i[1]].append(i[2])
     conn.close()
-    return {'level1_option': level1_option, 'level1_level2_option': level1_level2_option, 'level2_level3_option': level2_level3_option}
+    return {'pay_level1_option': pay_level1_option, 'pay_level1_level2_option': pay_level1_level2_option, 'pay_level2_level3_option': pay_level2_level3_option, 'income_level1_option': income_level1_option, 'income_level1_level2_option': income_level1_level2_option, 'income_level2_level3_option': income_level2_level3_option}

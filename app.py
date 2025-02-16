@@ -1053,6 +1053,17 @@ def gettravel():
 
 
 # #####################################
+# 定义cycling_strava的函数
+# #####################################
+
+@ app.route('/get_cycling_strava_chart_data')
+@auth.login_required
+def get_cycling_strava_chart_data():
+    dates, distances = cycling.get_strava_summary()
+    return json.dumps({'dates': dates, 'distances': distances})
+
+
+# #####################################
 # 定义cycling的函数
 # #####################################
 
