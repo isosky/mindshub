@@ -125,34 +125,43 @@ def init_option():
 
     # 得到近7天高频的
     cursor.execute(
-        "select level1,level2,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by level1,level2 order by 3 desc", [iswork, t])
-    for row in cursor:
-        result[row[0]].append(row[1])
-
-    # 将多的加回来
-    cursor.execute(
-        "select level1,level2,count(*) from task where isabandon=0 and iswork>=%s group by level1,level2 order by 3 desc", [iswork])
+        "select level1,level2,level3,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by level1,level2,level3 order by 4 desc", [iswork, t])
     for row in cursor:
         if row[1] not in result[row[0]]:
             result[row[0]].append(row[1])
-
-    # 得到近7天高频的
-    cursor.execute(
-        "select level2,level3,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by level2,level3 order by 3 desc", [iswork, t])
-    for row in cursor:
-        if row[0] not in level2_level3:
-            level2_level3[row[0]] = []
-        level2_level3[row[0]].append(row[1])
+        if row[1] not in level2_level3:
+            level2_level3[row[1]] = []
+        if row[2] not in level2_level3[row[1]]:
+            level2_level3[row[1]].append(row[2])
 
     # 将多的加回来
     cursor.execute(
-        "select level2,level3,count(*) from task where isabandon=0 and iswork>=%s group by level2,level3 order by 3 desc", [iswork])
+        "select level1,level2,level3,count(*) from task where isabandon=0 and iswork>=%s group by level1,level2,level3 order by 4 desc", [iswork])
     for row in cursor:
-        if row[0] not in level2_level3:
-            level2_level3[row[0]] = []
-        else:
-            if row[1] not in level2_level3[row[0]]:
-                level2_level3[row[0]].append(row[1])
+        if row[1] not in result[row[0]]:
+            result[row[0]].append(row[1])
+        if row[1] not in level2_level3:
+            level2_level3[row[1]] = []
+        if row[2] not in level2_level3[row[1]]:
+            level2_level3[row[1]].append(row[2])
+
+    # # 得到近7天高频的
+    # cursor.execute(
+    #     "select level2,level3,count(*) from task where isabandon=0 and iswork>=%s and stime>=%s group by level2,level3 order by 3 desc", [iswork, t])
+    # for row in cursor:
+    #     if row[0] not in level2_level3:
+    #         level2_level3[row[0]] = []
+    #     level2_level3[row[0]].append(row[1])
+
+    # # 将多的加回来
+    # cursor.execute(
+    #     "select level2,level3,count(*) from task where isabandon=0 and iswork>=%s group by level2,level3 order by 3 desc", [iswork])
+    # for row in cursor:
+    #     if row[0] not in level2_level3:
+    #         level2_level3[row[0]] = []
+    #     else:
+    #         if row[1] not in level2_level3[row[0]]:
+    #             level2_level3[row[0]].append(row[1])
 
     cursor.execute("select value from sys_cfg where id=1")
     lastchecktime = cursor.fetchone()[0]
@@ -373,7 +382,7 @@ def delete_task_by_task_id(task_id: int):
     conn.close()
 
 
-def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall, mode):
+def query_task(query, level1, level2, level3, ftime, query_duration, isstime, isqueryall, mode):
     # print(query, level1, level2, ftime,
     #       query_duration, isstime, isqueryall, mode)
     # print(ftime, '|', query_duration, '|', isstime)
@@ -390,6 +399,9 @@ def query_task(query, level1, level2, ftime, query_duration, isstime, isqueryall
     if level2 != '':
         sql += " and level2=%s "
         params_list.append(level2)
+    if level3 != '':
+        sql += " and level3=%s "
+        params_list.append(level3)
     # if ftime != '':
     #     sql += " and ftime like %s"
     #     ftime = '%'+ftime+'%'

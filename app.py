@@ -125,14 +125,15 @@ def deletetask():
 def querytask():
     json_data = json.loads(request.get_data())
     query = json_data['query']
-    type = json_data['type']
+    level1 = json_data['level1']
+    level2 = json_data['level2']
+    level3 = json_data['level3']
     ftime = json_data['ftime']
-    sub_type = json_data['sub_type']
     query_duration = json_data['query_duration']
     isstime = json_data['isstime']
     isqueryall = json_data['isqueryall']
     mode = json_data['mode']
-    return json.dumps({'arrays': task.query_task(query, type, sub_type, ftime, query_duration, isstime, isqueryall, mode)})
+    return json.dumps({'arrays': task.query_task(query, level1, level2, level3, ftime, query_duration, isstime, isqueryall, mode)})
 
 
 @app.route('/querytask_week')
