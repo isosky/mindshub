@@ -118,3 +118,4 @@ temp_data/i141958_activities.csv
 bc.txt
 sql/*
 data/*
+smoke_test.py
