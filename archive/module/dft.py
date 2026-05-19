@@ -16,6 +16,62 @@ def add_dft(dftform, isbyupdate):
         conn.commit()
         cursor.execute("select max(doc_id) from reading_dft")
         doc_id = cursor.fetchone()[0]
+    else:
+        doc_id = dftform['doc_id']
+    if len(dftform['appendixtable']) > 0:
+        for i in dftform['appendixtable']:
+            cursor.execute("insert into reading_dft_appendix (doc_id,tags,title,url) values (%s,%s,%s,%s)", [
+                doc_id, ','.join(i['tags']), i['title'], i['url']])
+        conn.commit()
+
+    if not dftform['isread']:
+        return {"res": True}
+    etime = dftform['reading_time'].split(' ')[0]
+    cursor.execute("insert into task (level1,level2,task_name,etime,ftime,iswork,isfinish,status,is_score,hours) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", [
+        '学习', 'dft', dftform['title'], etime, dftform['reading_time'], 1, 1, 2, 1, dftform['hours']])
+    conn.commit()
+
+    cursor.execute("select max(task_id) from task")
+    task_id = cursor.fetchone()[0]
+    cursor.execute("update reading_dft set task_id=%s where doc_id=%s",
+                   [task_id, doc_id])
+    cursor.execute("insert into task_person values (%s,%s)", [task_id, 0])
+    cursor.execute("insert into task_process (task_id,process_name,isfinish) values (%s,%s,1)", [
+        task_id, '已完成'])
+    conn.commit()
+    cursor.execute(
+        "update task_process set isfinish=1,ftime=now() where task_id=%s", [task_id])
+    res = update_dft_task_process(
+        cursor, task_id, dftform['tags'], dftform['hours'])
+    conn.commit()
+    conn.close()
+    return {"res": res}
+
+
+def delete_dft(doc_id):
+    conn, cursor = connect_database()
+    cursor.execute(
+        "insert into reading_dft_his  select * from reading_dft where doc_id=%s;", [doc_id])
+    conn.commit()
+    cursor.execute("delete from reading_dft where doc_id=%s;", [doc_id])
+    conn.commit()
+    conn.close()
+    return {"res": True}
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+
+def add_dft(dftform, isbyupdate):
+    conn, cursor = connect_database()
+    if not isbyupdate:
+        cursor.execute(
+            "insert into reading_dft (author,title,author_com,author_base,url_org,isread,tags,publish_time,reading_time) values (%s,%s,%s,%s,%s,%s,%s,%s,%s)", [
+                dftform['author'], dftform['title'], dftform['author_com'], dftform['author_base'], dftform[
+                    'url_org'], dftform['isread'], ','.join(dftform['tags']), dftform['publish_time'], dftform['reading_time']
+            ])
+        conn.commit()
+        cursor.execute("select max(doc_id) from reading_dft")
+        doc_id = cursor.fetchone()[0]
     # 得到doc_id
     else:
         doc_id = dftform['doc_id']

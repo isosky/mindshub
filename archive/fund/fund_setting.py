@@ -24,7 +24,8 @@ def get_fund_customer_label_option():
 
 def delete_fund_customer_label(fund_label_id):
     conn, cursor = connect_database()
-    cursor.execute("delete from fund_operation_label where id =%s", [fund_label_id])
+    cursor.execute(
+        "delete from fund_operation_label where id =%s", [fund_label_id])
     conn.commit()
     conn.close()
 
@@ -34,7 +35,8 @@ def add_fund_customer_label(hist_data_selected, fund_hist_code_selected):
     cursor.execute("insert into fund_operation_label (operation_label,fund_code) values (%s,%s)", [
         hist_data_selected, fund_hist_code_selected])
     conn.commit()
-    cursor.execute("update fund_operation_label set fund_name=(select fund_name from fund_base where fund_operation_label.fund_code=fund_base.fund_code);")
+    cursor.execute(
+        "update fund_operation_label set fund_name=(select fund_name from fund_base where fund_operation_label.fund_code=fund_base.fund_code);")
     conn.commit()
     conn.close()
 
@@ -49,7 +51,8 @@ def add_fund_author(author, apps_selected, isfirm):
 
 def add_new_label(new_label):
     conn, cursor = connect_database()
-    cursor.execute("insert into fund_label (fund_label) values (%s)", [new_label])
+    cursor.execute(
+        "insert into fund_label (fund_label) values (%s)", [new_label])
     conn.commit()
     conn.close()
 
@@ -71,7 +74,8 @@ def add_fund_label(label_data_selected, fund_had_code_selected):
     cursor.execute("insert into fund_label (fund_label,fund_code) values (%s,%s)", [
         label_data_selected, fund_had_code_selected])
     conn.commit()
-    cursor.execute("update fund_label set fund_name=(select fund_name from fund_base where fund_label.fund_code=fund_base.fund_code);")
+    cursor.execute(
+        "update fund_label set fund_name=(select fund_name from fund_base where fund_label.fund_code=fund_base.fund_code);")
     conn.commit()
     conn.close()
 

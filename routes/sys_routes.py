@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, render_template, request
 from flask_cors import cross_origin
 from extensions import auth, g_tokens
 from base import base
-from module import task, travel, nga_setting
+from module import task, travel
 import json
 
 bp = Blueprint('sys', __name__)
