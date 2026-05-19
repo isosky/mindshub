@@ -912,7 +912,7 @@ def get_sankey_data_from_task():
     nodes_depth = {'技术': 1, '行业': 2, '领域': 3, '技能': 4}
     nodes = []
 
-    cursor.execute("select distinct level2 from task_person_skill;")
+    cursor.execute("select distinct skill_level2 from task_person_skill;")
     for row in cursor:
         nodes.append({'name': row[0], 'depth': 0})
 
