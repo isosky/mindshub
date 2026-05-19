@@ -1,0 +1,305 @@
+{
+    "generated_at": "2026-05-19T00:00:00+08:00",
+    "description": "前端模块到后端 API 的映射（仅保留/关注模块）。status: present|missing|archived",
+    "modules": [
+        {
+            "name": "task",
+            "frontend": "summary/src/components/task.vue",
+            "endpoints": [
+                {
+                    "path": "/initoption",
+                    "method": "GET",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getperson_option",
+                    "method": "GET",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/gettimedata",
+                    "method": "GET",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/gettasksummary_bar",
+                    "method": "GET",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/querytask_week",
+                    "method": "GET",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/removetask",
+                    "method": "GET",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/deletetaskperson",
+                    "method": "POST",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/appendtaskperson",
+                    "method": "POST",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getperson_data",
+                    "method": "POST",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getfinishtask_data",
+                    "method": "POST",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "project",
+            "frontend": "summary/src/components/project.vue",
+            "endpoints": [
+                {
+                    "path": "/getproject",
+                    "method": "GET",
+                    "backend": "mindshub/routes/project_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/get_person_by_project_id",
+                    "method": "POST",
+                    "backend": "mindshub/routes/project_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/update_project_detail",
+                    "method": "POST",
+                    "backend": "mindshub/routes/project_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "transaction",
+            "frontend": "summary/src/components/transaction.vue",
+            "endpoints": [
+                {
+                    "path": "/get_transaction",
+                    "method": "POST",
+                    "backend": "mindshub/routes/transaction_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/get_transaction_option",
+                    "method": "GET",
+                    "backend": "mindshub/routes/transaction_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "count",
+            "frontend": "summary/src/components/count.vue",
+            "endpoints": [
+                {
+                    "path": "/gettreemapdata",
+                    "method": "POST",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getprogressdata",
+                    "method": "POST",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                }
+            ],
+            "note": "统计接口需补实现/验证"
+        },
+        {
+            "name": "person",
+            "frontend": "summary/src/components/person.vue",
+            "endpoints": [
+                {
+                    "path": "/getpersonoptions",
+                    "method": "GET",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getperson",
+                    "method": "GET",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/addperson",
+                    "method": "POST",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/updateperson",
+                    "method": "POST",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getpersonprofile",
+                    "method": "POST",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getpersontask",
+                    "method": "POST",
+                    "backend": "mindshub/routes/person_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getpersonleveltask",
+                    "method": "POST",
+                    "backend": null,
+                    "status": "missing"
+                }
+            ]
+        },
+        {
+            "name": "schedule",
+            "frontend": "summary/src/components/schedule.vue",
+            "endpoints": [
+                {
+                    "path": "/getscheduledata",
+                    "method": "GET",
+                    "backend": "mindshub/routes/schedule_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getscheduletaskdata",
+                    "method": "POST",
+                    "backend": "mindshub/routes/schedule_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/deleteschedule",
+                    "method": "POST",
+                    "backend": "mindshub/routes/schedule_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "typeanalysis",
+            "frontend": "summary/src/components/typeanalysis.vue",
+            "endpoints": [
+                {
+                    "path": "/initoption",
+                    "method": "GET",
+                    "backend": "mindshub/routes/task_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "travel",
+            "frontend": "summary/src/components/travel.vue",
+            "endpoints": [
+                {
+                    "path": "/gettravel",
+                    "method": "GET",
+                    "backend": "mindshub/routes/sys_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/getcitydata",
+                    "method": "GET",
+                    "backend": "mindshub/routes/sys_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "syssetting",
+            "frontend": "summary/src/components/syssetting.vue",
+            "endpoints": [
+                {
+                    "path": "/getiswork",
+                    "method": "GET",
+                    "backend": "mindshub/routes/sys_routes.py",
+                    "status": "present"
+                },
+                {
+                    "path": "/setiswork",
+                    "method": "POST",
+                    "backend": "mindshub/routes/sys_routes.py",
+                    "status": "present"
+                }
+            ]
+        },
+        {
+            "name": "archived_cycling",
+            "frontend": null,
+            "endpoints": [
+                {
+                    "path": "/get_cycling_strava_chart_data",
+                    "method": "GET",
+                    "backend": "archive/routes/cycling_routes.py",
+                    "status": "archived"
+                }
+            ],
+            "note": "已归档：cycling 模块"
+        },
+        {
+            "name": "archived_dft",
+            "frontend": null,
+            "endpoints": [
+                {
+                    "path": "/getdftdata",
+                    "method": "GET",
+                    "backend": "archive/routes/dft_routes.py",
+                    "status": "archived"
+                }
+            ],
+            "note": "已归档：dft 模块"
+        },
+        {
+            "name": "archived_fund",
+            "frontend": null,
+            "endpoints": [
+                {
+                    "path": "/get_fund_info",
+                    "method": "GET",
+                    "backend": "archive/routes/fund_routes.py",
+                    "status": "archived"
+                }
+            ],
+            "note": "已归档：fund 模块（接口较多，摘录代表性接口）"
+        },
+        {
+            "name": "archived_nga",
+            "frontend": null,
+            "endpoints": [
+                {
+                    "path": "/getposttabledata",
+                    "method": "GET",
+                    "backend": "archive/routes/nga_routes.py",
+                    "status": "archived"
+                }
+            ],
+            "note": "已归档：nga 模块"
+        }
+    ]
+}

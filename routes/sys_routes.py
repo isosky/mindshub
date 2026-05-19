@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, render_template, request
 from flask_cors import cross_origin
 from extensions import auth, g_tokens
 from base import base
-from module import task, travel, nga_setting
+from module import task, travel
 import json
 
 bp = Blueprint('sys', __name__)
@@ -150,4 +150,11 @@ def querycity():
     city_lon = json_data['city_lon']
     city_lat = json_data['city_lat']
     res = travel.query_city(city_name, city_lon, city_lat)
+    return jsonify(res)
+
+
+@bp.route('/gettravel')
+@auth.login_required
+def gettravel():
+    res = travel.get_travel()
     return jsonify(res)

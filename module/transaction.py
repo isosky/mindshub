@@ -51,18 +51,21 @@ def get_transaction_option():
     for i in cursor:
         # print(i)
         # # 判断一级是否在列表中
-        if i[0] not in pay_level1:
-            pay_level1.append(i[0])
-            pay_level1_option.append({'value': i[0], 'label': i[0]})
-            pay_level1_level2_option[i[0]] = [i[1]]
-            pay_level2_level3_option[i[1]] = [i[2]]
+        k0 = i[0] if i[0] is not None else ''
+        k1 = i[1] if i[1] is not None else ''
+        k2 = i[2] if i[2] is not None else ''
+        if k0 not in pay_level1:
+            pay_level1.append(k0)
+            pay_level1_option.append({'value': k0, 'label': k0})
+            pay_level1_level2_option[k0] = [k1]
+            pay_level2_level3_option[k1] = [k2]
         else:
-            if i[1] not in pay_level1_level2_option[i[0]]:
-                pay_level1_level2_option[i[0]].append(i[1])
-                pay_level2_level3_option[i[1]] = [i[2]]
+            if k1 not in pay_level1_level2_option[k0]:
+                pay_level1_level2_option[k0].append(k1)
+                pay_level2_level3_option[k1] = [k2]
             else:
-                if i[2] not in pay_level2_level3_option[i[1]]:
-                    pay_level2_level3_option[i[1]].append(i[2])
+                if k2 not in pay_level2_level3_option[k1]:
+                    pay_level2_level3_option[k1].append(k2)
 
     cursor.execute(
         "select level1,level2,level3 from transaction_records where data_status!=2 and level1 is not null and transaction_direction='收入' group by level1,level2,level3 order by count(*) desc;")
@@ -73,17 +76,20 @@ def get_transaction_option():
     for i in cursor:
         # print(i)
         # # 判断一级是否在列表中
-        if i[0] not in income_level1:
-            income_level1.append(i[0])
-            income_level1_option.append({'value': i[0], 'label': i[0]})
-            income_level1_level2_option[i[0]] = [i[1]]
-            income_level2_level3_option[i[1]] = [i[2]]
+        k0 = i[0] if i[0] is not None else ''
+        k1 = i[1] if i[1] is not None else ''
+        k2 = i[2] if i[2] is not None else ''
+        if k0 not in income_level1:
+            income_level1.append(k0)
+            income_level1_option.append({'value': k0, 'label': k0})
+            income_level1_level2_option[k0] = [k1]
+            income_level2_level3_option[k1] = [k2]
         else:
-            if i[1] not in income_level1_level2_option[i[0]]:
-                income_level1_level2_option[i[0]].append(i[1])
-                income_level2_level3_option[i[1]] = [i[2]]
+            if k1 not in income_level1_level2_option[k0]:
+                income_level1_level2_option[k0].append(k1)
+                income_level2_level3_option[k1] = [k2]
             else:
-                if i[2] not in income_level2_level3_option[i[1]]:
-                    income_level2_level3_option[i[1]].append(i[2])
+                if k2 not in income_level2_level3_option[k1]:
+                    income_level2_level3_option[k1].append(k2)
     conn.close()
     return {'pay_level1_option': pay_level1_option, 'pay_level1_level2_option': pay_level1_level2_option, 'pay_level2_level3_option': pay_level2_level3_option, 'income_level1_option': income_level1_option, 'income_level1_level2_option': income_level1_level2_option, 'income_level2_level3_option': income_level2_level3_option}

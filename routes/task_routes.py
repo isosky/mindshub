@@ -114,3 +114,126 @@ def removetask():
 @auth.login_required
 def gettasksummary_bar():
     return jsonify(task.get_bar_data_from_task())
+
+
+@bp.route('/getprogressdata', methods=['POST'])
+@auth.login_required
+def getprogressdata():
+    return jsonify(task.calculate_process_hours())
+
+
+@bp.route('/getcalendardata', methods=['POST'])
+@auth.login_required
+def getcalendardata():
+    return jsonify(task.get_task_by_calendar())
+
+
+@bp.route('/gettreemapdata', methods=['POST'])
+@auth.login_required
+def gettreemapdata():
+    return jsonify(task.get_treemap_data_from_task())
+
+
+@bp.route('/getsankeydata', methods=['POST'])
+@auth.login_required
+def getsankeydata():
+    return jsonify(task.get_sankey_data_from_task())
+
+
+@bp.route('/gettimedata')
+@auth.login_required
+def gettimedata():
+    return jsonify(task.get_calendar_data_from_task())
+
+
+@bp.route('/addprocess', methods=['POST'])
+@auth.login_required
+def addprocess():
+    json_data = request.get_json(force=True)
+    task_id = json_data['task_id']
+    process_name = json_data['process_name']
+    res = task.add_task_process(task_id, process_name)
+    return jsonify({'result': res})
+
+
+@bp.route('/deleteprocess', methods=['POST'])
+@auth.login_required
+def deleteprocess():
+    json_data = request.get_json(force=True)
+    process_id = json_data['process_id']
+    temp = task.delete_process(process_id)
+    return jsonify({'result': temp})
+
+
+@bp.route('/getprocess', methods=['POST'])
+@auth.login_required
+def getprocess():
+    json_data = request.get_json(force=True)
+    task_id = json_data['task_id']
+    temp = task.get_process_by_task_id(task_id)
+    temp_s = task.get_process_count_by_task_id(task_id)
+    return jsonify({'arrays': temp, 'status': temp_s})
+
+
+@bp.route('/resetprocess', methods=['POST'])
+@auth.login_required
+def resetprocess():
+    json_data = request.get_json(force=True)
+    process_id = json_data['process_id']
+    return jsonify({'status': task.reset_process_by_id(process_id)})
+
+
+@bp.route('/finishprocess', methods=['POST'])
+@auth.login_required
+def finishprocess():
+    json_data = request.get_json(force=True)
+    process_id = json_data['process_id']
+    return jsonify({'status': task.finish_process_by_id(process_id)})
+
+
+@bp.route('/updateprocess', methods=['POST'])
+@auth.login_required
+def updateprocess():
+    json_data = request.get_json(force=True)
+    process_id = json_data['process_id']
+    process_name = json_data['process_name']
+    return jsonify({'status': task.update_process(process_id, process_name)})
+
+
+@bp.route('/appendtaskperson', methods=['POST'])
+@auth.login_required
+def appendtaskperson():
+    json_data = request.get_json(force=True)
+    task_id = json_data['task_id']
+    person_id = json_data['person_id']
+    res = task.add_task_person(task_id, person_id)
+    return jsonify(res)
+
+
+@bp.route('/deletetaskperson', methods=['POST'])
+@auth.login_required
+def deletetaskperson():
+    json_data = request.get_json(force=True)
+    task_id = json_data['task_id']
+    person_id = json_data['person_id']
+    res = task.delete_person_by_task_id(task_id, person_id)
+    return jsonify(res)
+
+
+@bp.route('/getfinishtask_data', methods=['POST'])
+@auth.login_required
+def getfinishtask_data():
+    json_data = request.get_json(force=True)
+    task_id = json_data['task_id']
+    res = task.get_sub_by_task_id(task_id)
+    return jsonify(res)
+
+
+@bp.route('/getrecommendperson', methods=['POST'])
+@auth.login_required
+def getrecommendperson():
+    json_data = request.get_json(force=True)
+    level1 = json_data.get('level1')
+    level2 = json_data.get('level2')
+    temp = task.get_recommended_person_by_type(level1, level2)
+    return jsonify(temp)

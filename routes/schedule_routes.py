@@ -32,3 +32,49 @@ def addschedule():
 @auth.login_required
 def getscheduledata():
     return jsonify({'data': schedule.get_schedule()})
+
+
+@bp.route('/getscheduletaskdata', methods=['POST'])
+@auth.login_required
+def getscheduletaskdata():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    return jsonify({'data': schedule.get_task_by_schedule_id(schedule_id)})
+
+
+@bp.route('/deleteschedule', methods=['POST'])
+@auth.login_required
+def deleteschedule():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    return jsonify({'status': schedule.delete_schedule(schedule_id)})
+
+
+@bp.route('/forbidschedule', methods=['POST'])
+@auth.login_required
+def forbidschedule():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    return jsonify({'status': schedule.forbid_schedule(schedule_id)})
+
+
+@bp.route('/startschedule', methods=['POST'])
+@auth.login_required
+def startschedule():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    return jsonify({'status': schedule.enable_schedule(schedule_id)})
+
+
+@bp.route('/modifyschedule', methods=['POST'])
+@auth.login_required
+def modifyschedule():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    level1 = json_data.get('level1')
+    level2 = json_data.get('level2')
+    level3 = json_data.get('level3')
+    schedule_type = json_data.get('schedule_type')
+    schedule_frequence = json_data.get('schedule_frequence')
+    task_name = json_data.get('schedule_content')
+    return jsonify({'status': schedule.update_schedule(schedule_id, level1, level2, level3, schedule_type, schedule_frequence, task_name)})
