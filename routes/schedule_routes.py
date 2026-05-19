@@ -32,3 +32,19 @@ def addschedule():
 @auth.login_required
 def getscheduledata():
     return jsonify({'data': schedule.get_schedule()})
+
+
+@bp.route('/getscheduletaskdata', methods=['POST'])
+@auth.login_required
+def getscheduletaskdata():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    return jsonify({'data': schedule.get_task_by_schedule_id(schedule_id)})
+
+
+@bp.route('/deleteschedule', methods=['POST'])
+@auth.login_required
+def deleteschedule():
+    json_data = request.get_json(force=True)
+    schedule_id = json_data.get('schedule_id')
+    return jsonify({'status': schedule.delete_schedule(schedule_id)})

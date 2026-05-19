@@ -151,3 +151,10 @@ def querycity():
     city_lat = json_data['city_lat']
     res = travel.query_city(city_name, city_lon, city_lat)
     return jsonify(res)
+
+
+@bp.route('/gettravel')
+@auth.login_required
+def gettravel():
+    res = travel.get_travel()
+    return jsonify(res)
