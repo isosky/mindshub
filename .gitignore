@@ -121,3 +121,4 @@ data/*
 smoke_test.py
 smoke_run.ps1
 smoke_runner.py
+logs/*
