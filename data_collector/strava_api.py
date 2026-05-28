@@ -248,14 +248,29 @@ def fetch_strava_segments_for_activities(activity_records, access_token=None, cl
             refresh_token=refresh_token,
             include_all_efforts=True,
         )
-        stream_data = fetch_activity_streams(
-            activity_id=activity_id,
-            access_token=access_token,
-            client_id=client_id,
-            client_secret=client_secret,
-            refresh_token=refresh_token,
-            keys=["time", "heartrate"],
-        )
+        # Only request streams if some segment_effort is missing heartrate
+        segment_efforts = detail.get("segment_efforts") or []
+        need_stream = False
+        for effort in segment_efforts:
+            if effort.get("average_heartrate") is None or effort.get("max_heartrate") is None:
+                need_stream = True
+                break
+
+        stream_data = {}
+        if need_stream:
+            try:
+                stream_data = fetch_activity_streams(
+                    activity_id=activity_id,
+                    access_token=access_token,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    refresh_token=refresh_token,
+                    keys=["time", "heartrate"],
+                )
+            except Exception:
+                # If streams fail (rate limit etc.), proceed with detail-only data
+                stream_data = {}
+
         rows.extend(build_activity_segment_records(
             activity, detail, stream_data))
     return rows

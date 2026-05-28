@@ -131,7 +131,8 @@ def init_option():
             result[row[0]].append(row[1])
         if row[1] not in level2_level3:
             level2_level3[row[1]] = []
-        if row[2] not in level2_level3[row[1]]:
+        # 过滤掉空的第三级（None 或 空字符串），避免前端下拉出现空值
+        if row[2] is not None and row[2] != '' and row[2] not in level2_level3[row[1]]:
             level2_level3[row[1]].append(row[2])
 
     # 将多的加回来
@@ -142,7 +143,8 @@ def init_option():
             result[row[0]].append(row[1])
         if row[1] not in level2_level3:
             level2_level3[row[1]] = []
-        if row[2] not in level2_level3[row[1]]:
+        # 同样在汇总时过滤空值
+        if row[2] is not None and row[2] != '' and row[2] not in level2_level3[row[1]]:
             level2_level3[row[1]].append(row[2])
 
     # # 得到近7天高频的

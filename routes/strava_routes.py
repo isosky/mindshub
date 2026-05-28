@@ -5,6 +5,8 @@ from flask import Blueprint, jsonify, request
 
 from extensions import auth
 from module import strava_sync
+import json
+import threading
 
 
 bp = Blueprint('strava', __name__, url_prefix='')
@@ -54,3 +56,22 @@ def query_strava_run_segments():
         limit=json_data.get('limit', 500),
     )
     return jsonify({'code': 200, 'data': result})
+
+
+@bp.route('/resync_activity_segments', methods=['POST'])
+@auth.login_required
+def resync_activity_segments():
+    json_data = request.get_json(force=True) or {}
+    activity_id = json_data.get('activity_id')
+    if not activity_id:
+        return jsonify({'code': 400, 'msg': 'missing activity_id'})
+
+    # trigger background resync
+    try:
+        # run in background to avoid blocking request
+        threading.Thread(target=strava_sync.resync_activity_segments, args=(
+            int(activity_id),), daemon=True).start()
+    except Exception:
+        return jsonify({'code': 500, 'msg': 'failed to start resync'})
+
+    return jsonify({'code': 200, 'msg': 'resync started'})

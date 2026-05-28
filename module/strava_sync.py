@@ -9,6 +9,7 @@ from datetime import datetime, time
 from base.base import connect_database
 from base.config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
 from data_collector.strava_api import fetch_strava_activities, fetch_strava_segments_for_activities
+import threading
 
 
 SYNC_MODES = {'incremental', 'full', 'range'}
@@ -202,8 +203,8 @@ def _upsert_activities(rows):
     sql = (
         'insert into strava_activities '
         '(activity_id, activity_type, activity_name, start_time, duration_second, distance_meter, '
-        'elevation_gain, average_heartrate, average_power_watt, average_pace_second_per_km, exercise_load_score, created_at, updated_at) '
-        'values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now(),now()) '
+        'elevation_gain, average_heartrate, average_power_watt, average_pace_second_per_km, exercise_load_score, segments_fetched, created_at, updated_at) '
+        'values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0,now(),now()) '
         'on duplicate key update '
         'activity_type=values(activity_type), '
         'activity_name=values(activity_name), '
@@ -235,6 +236,20 @@ def _upsert_activities(rows):
     ]
     conn, cursor = connect_database()
     cursor.executemany(sql, data)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def _mark_segments_fetched(activity_ids):
+    if not activity_ids:
+        return
+    conn, cursor = connect_database()
+    placeholders = ','.join(['%s'] * len(activity_ids))
+    cursor.execute(
+        f'update strava_activities set segments_fetched=1 where activity_id in ({placeholders})',
+        activity_ids,
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -423,13 +438,37 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
             row for row in activity_rows if row['activity_id'] is not None]
         _upsert_activities(activity_rows)
 
+        # Only fetch segments for activities that have not been fetched yet
         run_activities = [
             activity for activity in activities_to_save if activity.get('type') == 'Run']
         ride_activities = [
             activity for activity in activities_to_save if activity.get('type') == 'Ride']
         run_segment_rows = []
         ride_segment_rows = []
-        segment_activities = run_activities + ride_activities
+
+        # filter activities_to_save by segments_fetched flag in DB
+        def _filter_unfetched(acts):
+            if not acts:
+                return []
+            ids = [a.get('id') for a in acts if a.get('id') is not None]
+            if not ids:
+                return []
+            conn, cursor = connect_database(dictionary=True)
+            placeholders = ','.join(['%s'] * len(ids))
+            cursor.execute(
+                f'select activity_id, segments_fetched from strava_activities where activity_id in ({placeholders})',
+                ids,
+            )
+            fetched_map = {row['activity_id']: row['segments_fetched']
+                           for row in cursor.fetchall()}
+            cursor.close()
+            conn.close()
+            return [a for a in acts if fetched_map.get(a.get('id')) in (0, None)]
+
+        run_to_fetch = _filter_unfetched(run_activities)
+        ride_to_fetch = _filter_unfetched(ride_activities)
+        segment_activities = run_to_fetch + ride_to_fetch
+        fetched_activity_ids = []
         if segment_activities:
             segment_rows = fetch_strava_segments_for_activities(
                 segment_activities,
@@ -438,6 +477,10 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
                 client_secret=credentials['client_secret'],
                 refresh_token=credentials['refresh_token'],
             )
+            # derive activity ids that were processed
+            fetched_activity_ids = list(
+                {seg.get('activity_id') for seg in segment_rows if seg.get('activity_id')})
+
             run_segment_rows = [_build_run_segment_row(
                 segment) for segment in segment_rows if segment.get('activity_type') == 'Run']
             run_segment_rows = [
@@ -451,6 +494,12 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
             ride_segment_rows = [
                 row for row in ride_segment_rows if row['segment_effort_id'] is not None]
             _upsert_ride_segments(ride_segment_rows)
+
+        # mark activities as having fetched segments
+        try:
+            _mark_segments_fetched([int(x) for x in fetched_activity_ids])
+        except Exception:
+            pass
 
         summary['saved_activity_count'] = len(activity_rows)
         summary['saved_run_count'] = len(
@@ -470,6 +519,64 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
         _insert_sync_log(sync_mode, start_date, end_date,
                          'failed', summary, error_message=str(exc))
         raise
+
+
+def _get_activity_by_id(activity_id):
+    conn, cursor = connect_database(dictionary=True)
+    cursor.execute(
+        'select activity_id as id, activity_type as type from strava_activities where activity_id=%s',
+        [int(activity_id)],
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row
+
+
+def resync_activity_segments(activity_id):
+    """Force re-fetch segments for a single activity in background thread.
+
+    This function will set segments_fetched=0 and spawn a background thread
+    to fetch and upsert segments for the given activity. No external queue
+    required.
+    """
+    # mark segments_fetched = 0
+    conn, cursor = connect_database()
+    cursor.execute('update strava_activities set segments_fetched=0 where activity_id=%s', [
+                   int(activity_id)])
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    def _worker(act_id):
+        activity = _get_activity_by_id(act_id)
+        if not activity:
+            return
+        # build minimal activity dict compatible with fetch_strava_segments_for_activities
+        activity_record = {'id': activity.get(
+            'id'), 'type': activity.get('type')}
+        try:
+            credentials = _load_strava_credentials()
+            segment_rows = fetch_strava_segments_for_activities(
+                [activity_record],
+                access_token=credentials['access_token'],
+                client_id=credentials['client_id'],
+                client_secret=credentials['client_secret'],
+                refresh_token=credentials['refresh_token'],
+            )
+            run_segment_rows = [_build_run_segment_row(
+                segment) for segment in segment_rows if segment.get('activity_type') == 'Run']
+            _upsert_run_segments(run_segment_rows)
+            enabled_ride_segment_names = _get_enabled_ride_segment_names()
+            ride_segment_rows = [_build_ride_segment_row(
+                segment) for segment in segment_rows
+                if segment.get('activity_type') == 'Ride' and segment.get('segment_name') in enabled_ride_segment_names]
+            _upsert_ride_segments(ride_segment_rows)
+            _mark_segments_fetched([int(activity.get('id'))])
+        except Exception:
+            pass
+
+    threading.Thread(target=_worker, args=(activity_id,), daemon=True).start()
 
 
 def get_last_sync_status():
