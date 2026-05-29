@@ -72,6 +72,18 @@ def get_activity_health_metrics():
     return jsonify({'code': 200, 'data': res})
 
 
+@bp.route('/compute_health_metrics', methods=['POST'])
+@auth.login_required
+def compute_health_metrics():
+    json_data = request.get_json(force=True) or {}
+    target_year = json_data.get('year')
+    # rebuild metrics for the year (will rebuild only missing range)
+    res_rebuild = activity.rebuild_activity_daily_load_metrics(target_year)
+    # return latest metrics
+    res = activity.get_activity_health_metrics(target_year)
+    return jsonify({'code': 200, 'data': res})
+
+
 @bp.route('/query_run_segment_detail', methods=['POST'])
 @auth.login_required
 def query_run_segment_detail():
