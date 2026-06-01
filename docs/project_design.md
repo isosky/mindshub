@@ -57,4 +57,22 @@
 - 前端将跑步路段分析拆为独立页面 `summary/src/components/activity_run_segment_analysis.vue`，布局为一行三列（左-路段列表，中-趋势图，右-明细表），趋势图采用动态 Y 轴且 X 轴按时间升序渲染（最左为最早时间）。
 - 已删除旧的合并页面 `activity_segment_analysis.vue` 与兼容路由 `/activity_segment_analysis`，前端导航仅保留跑步与骑行独立页入口。
 
+## 投资复盘子系统（2026-06 更新）
+
+当前投资相关能力已从“原型说明”进入“前后端可联调”状态，包含 3 个页面与 2 组后端接口：
+
+- 页面：`/investment_review`、`/market_watchlist`、`/market_sync_ops`
+- 接口组：`investment_review_routes.py`、`market_data_routes.py`
+
+职责拆分：
+
+- 复盘业务数据（计划、修改、执行、复盘总结）存储在 `summary/summary_test`。
+- 行情与指标（K线、MA、RSI、MACD）及同步日志存储在 `investdb`。
+
+详细文档请查看：
+
+- `docs/investment.md`
+- `docs/akshare_investdb_design.md`
+- `docs/market_data_crontab.md`
+
 

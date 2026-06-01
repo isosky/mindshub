@@ -1,239 +1,166 @@
 # AKShare 行情与指标入库设计（investdb）
 
-## 1. 目标与范围
+## 1. 目标
 
-本设计用于将股票、ETF、指数的日线行情与技术指标数据，从 AKShare 采集并写入 investdb，供投资复盘页面图表区使用（K 线、成交量、RSI、MACD）。
+建设稳定的行情采集与指标入库链路，为投资复盘图表提供统一数据源。
 
-本期目标：
-- 打通从数据采集到入库再到查询接口的完整链路。
-- 支持两类标的来源：计划标的、观察池标的。
-- 提供稳定的增量同步能力与可追踪任务日志。
+当前覆盖：
 
-## 2. 已确认业务口径
+- 日线 K 线（股票/ETF/指数）
+- 技术指标（MA5/10/20/60、RSI6/14、MACD）
+- 观察池维护
+- 同步任务日志可观测
 
-- 标的范围：股票 + ETF + 指数。
-- 复权口径：固定前复权，不提供切换。
-- 计划标的数据窗口：计划开始前 2 个月 到 计划结束后 30 天（自然日）。
-- 观察池标的：允许额外维护；按每日任务持续拉取，不受单条计划窗口限制。
-- 调度频率：
-  - 交易时段每 30 分钟执行一次。
-  - 午休时段跳过。
-  - 收盘后 15:30 执行一次确认同步。
+## 2. 数据职责边界
 
-## 3. 数据职责边界
+1. `investdb` 仅保存行情与指标数据
+- `stock_daily_kline_indicator`
+- `market_watchlist`
+- `market_sync_job_log`
 
-- investdb：仅存行情与指标数据（价格、成交量、MA、RSI、MACD 等）。
-- summary / summary_test：仅存复盘业务数据（计划、修改、执行、复盘）。
-- 页面展示由接口层进行数据组装：
-  - 左侧图表来自 investdb。
-  - 右侧复盘内容来自 summary 业务库。
+2. `summary` / `summary_test` 仅保存复盘业务数据
+- 计划、修改、执行、复盘总结
 
-## 4. 数据模型设计
+3. 页面组装职责
+- 左侧图表数据来自 `investdb`
+- 右侧复盘业务数据来自 `summary`
 
-### 4.1 日线宽表（核心）
+## 3. 表结构（当前）
 
-表名建议：stock_daily_kline_indicator
+### 3.1 行情宽表 `stock_daily_kline_indicator`
 
-字段建议：
-- id：bigint，自增主键。
-- symbol_code：varchar(32)，统一标的代码（如 000001.SZ / 510300.SH / 000300.SH）。
-- symbol_type：varchar(16)，取值建议 stock / etf / index。
-- trade_date：date，交易日。
-- adjust_type：varchar(16)，固定值 qfq（前复权）。
-- open_price：decimal(18,4)
-- high_price：decimal(18,4)
-- low_price：decimal(18,4)
-- close_price：decimal(18,4)
-- prev_close_price：decimal(18,4)
-- change_amount：decimal(18,4)
-- change_pct：decimal(10,4)
-- volume：decimal(20,2)
-- amount：decimal(20,2)
-- turnover_rate：decimal(10,4)
-- ma5：decimal(18,4)
-- ma10：decimal(18,4)
-- ma20：decimal(18,4)
-- ma60：decimal(18,4)
-- rsi6：decimal(10,4)
-- rsi14：decimal(10,4)
-- dif：decimal(18,6)
-- dea：decimal(18,6)
-- macd_hist：decimal(18,6)
-- data_source：varchar(32)，默认 akshare。
-- created_at：datetime
-- updated_at：datetime
+主键与约束：
 
-约束与索引：
-- 唯一键：uk_symbol_date_adjust(symbol_code, trade_date, adjust_type)
-- 普通索引：idx_symbol_date(symbol_code, trade_date)
-- 普通索引：idx_trade_date(trade_date)
+- 主键：`id`
+- 唯一键：`(symbol_code, trade_date, adjust_type)`
+- 固定复权：`adjust_type='qfq'`
 
-说明：
-- 当前固定前复权，adjust_type 仍保留字段，便于未来扩展。
-- 以 symbol_code + trade_date + adjust_type 作为幂等写入基础。
+核心字段：
 
-### 4.2 观察池配置表
+- 标的信息：`symbol_code`、`symbol_type`
+- 价格：`open_price/high_price/low_price/close_price/prev_close_price`
+- 交易：`volume/amount/turnover_rate`
+- 涨跌：`change_amount/change_pct`
+- 指标：`ma5/ma10/ma20/ma60/rsi6/rsi14/dif/dea/macd_hist`
 
-表名建议：market_watchlist
+### 3.2 观察池表 `market_watchlist`
 
-字段建议：
-- id：bigint，自增主键。
-- symbol_code：varchar(32)
-- symbol_name：varchar(64)
-- symbol_type：varchar(16)
-- enabled：tinyint，1 启用 / 0 停用。
-- remark：varchar(255)
-- created_by：varchar(64)
-- created_at：datetime
-- updated_at：datetime
+- 唯一键：`symbol_code`
+- 状态字段：`enabled`（1 启用，0 停用）
+- 类型字段：`symbol_type`（`stock|etf|index`）
 
-约束与索引：
-- 唯一键：uk_symbol(symbol_code)
-- 索引：idx_enabled_type(enabled, symbol_type)
+### 3.3 同步日志表 `market_sync_job_log`
 
-说明：
-- 当前先落后端表与接口，页面后续开发。
+- 运行模式：`manual|intraday_30m|close_confirm`
+- 状态：`running|success|failed|partial_success|skipped`
+- 统计字段：`total_symbols/success_symbols/failed_symbols/upsert_rows`
+- 明细：`detail_json`
 
-### 4.3 任务日志表
+## 4. 采集策略（当前实现）
 
-表名建议：market_sync_job_log
+### 4.1 标的来源
 
-字段建议：
-- id：bigint，自增主键。
-- job_name：varchar(64)
-- run_mode：varchar(32)（intraday_30m / close_confirm / manual）
-- started_at：datetime
-- finished_at：datetime
-- status：varchar(16)（running / success / failed / partial_success）
-- total_symbols：int
-- success_symbols：int
-- failed_symbols：int
-- upsert_rows：int
-- error_summary：text
-- detail_json：json
-- created_at：datetime
+- `mode=plan`：来自复盘计划中的标的
+- `mode=watchlist`：来自观察池启用标的
+- `mode=all`：计划标的 + 观察池标的
 
-## 5. 采集与计算流程
+### 4.2 时间窗口
 
-### 5.1 标的来源拆分
+1. 计划标的窗口
+- 起点：计划开始日期前 2 个月
+- 终点：计划结束日期后 30 天
 
-1) 计划标的任务
-- 从 summary 业务库读取计划列表与计划周期。
-- 计算单标的拉取区间：
-  - start = plan_start - 2 个月
-  - end = plan_end + 30 天
-- 同一 symbol 多计划取并集区间，减少重复拉取。
+2. 增量回看
+- 为减少 EMA/RSI 边界误差，按最新交易日向前回看 `LOOKBACK_DAYS=120`
 
-2) 观察池任务
-- 读取 market_watchlist 中 enabled=1 的标的。
-- 每日按增量窗口拉取并更新。
+3. 观察池初始化
+- 无历史时默认回拉 `WATCHLIST_INITIAL_DAYS=365`
 
-### 5.2 拉取策略
+### 4.3 接口回退与重试
 
-- 数据源：AKShare 日线接口（前复权）。
-- 增量更新：
-  - 每个标的先查本地最大 trade_date。
-  - 实际拉取起点 = max_trade_date 向前回看 N 天（建议 120 天）
-  - 目的：消除 EMA/RSI 类指标边界误差。
-- 收盘确认（15:30）：
-  - 对当日及最近窗口再次同步，确保最终数据完整。
+- 每类标的采用主接口 + 备用接口策略
+- 网络异常重试 `FETCH_RETRY_TIMES=3`
 
-### 5.3 指标计算口径（本期固定）
+### 4.4 幂等写入
 
-- MA：MA5 / MA10 / MA20 / MA60
-- RSI：RSI6 / RSI14
-- MACD：12, 26, 9（输出 DIF、DEA、MACD 柱）
+- 采用批量 upsert
+- 基于唯一键覆盖更新，重复执行不会产生脏重复
 
-说明：
-- 参数先固定，后续可配置化。
-- 所有计算在采集链路完成后再入库，页面不做指标计算。
+## 5. 指标计算口径
 
-### 5.4 入库策略
+固定参数：
 
-- 批量 upsert（建议每批 500~2000 行）。
-- 幂等写入：遇到唯一键冲突执行 update。
-- 单标的失败不阻塞全任务，任务结束输出失败清单。
+- MA: 5/10/20/60
+- RSI: 6/14
+- MACD: 12/26/9（输出 `dif/dea/macd_hist`）
 
-## 6. 调度设计
+计算位置：
 
-建议调度表达（crontab 示例思路，实际以服务器时区为准）：
+- 在采集链路中完成指标计算后入库
+- 前端仅消费结果，不重复计算
 
-- 交易时段每 30 分钟：
-  - 上午：09:30、10:00、10:30、11:00、11:30
-  - 下午：13:00、13:30、14:00、14:30、15:00
-- 收盘确认：15:30
+## 6. 接口（后端）
 
-实现建议：
-- 提供统一触发接口（内部调用），由 crontab 调该接口。
-- 接口支持 run_mode 参数：intraday_30m / close_confirm / manual。
+### 6.1 同步触发
 
-## 7. 接口草案
+`POST /market_data/trigger_sync`
 
-### 7.1 采集触发接口（内部）
+入参示例：
 
-- 路径：/market_data/trigger_sync
-- 方法：POST
-- 入参：
-  - run_mode（必填）：intraday_30m / close_confirm / manual
-  - symbols（可选）：手工指定标的列表
-  - start_date（可选）
-  - end_date（可选）
-- 出参：
-  - job_id
-  - accepted（true/false）
+```json
+{
+  "mode": "all",
+  "run_mode": "manual",
+  "start_date": "2026-05-01",
+  "end_date": "2026-05-31",
+  "dry_run": true,
+  "limit": 30
+}
+```
 
-### 7.2 图表查询接口（前端使用）
+### 6.2 同步日志
 
-- 路径：/market_data/kline_indicators
-- 方法：POST
-- 入参：
-  - symbol_code
-  - start_date
-  - end_date
-- 出参：
-  - 按交易日升序的 K 线、成交量、RSI、MACD、MA 数据
+`POST /market_data/sync_jobs/list`
 
-### 7.3 观察池管理接口（页面后续接入）
+可筛选：`run_mode`、`status`、`limit`
 
-- 新增观察标的：/market_data/watchlist/add
-- 删除观察标的：/market_data/watchlist/remove
-- 列表查询：/market_data/watchlist/list
-- 启停切换：/market_data/watchlist/toggle
+### 6.3 图表数据
 
-## 8. 异常处理与稳定性
+`POST /market_data/kline_indicators`
 
-- 网络异常：重试 2~3 次，指数退避。
-- 空数据或停牌：记录日志并跳过，不判定全任务失败。
-- 数据质量校验：
-  - trade_date 非空
-  - OHLC 合法性校验（high >= low）
-  - 数值字段非法时置空并记录。
-- 并发控制：
-  - 任务加分布式锁或 DB 锁，避免同 run_mode 重复并发执行。
+返回结构包含两层：
 
-## 9. 验收标准
+- `rows`：逐日明细
+- `chart`：前端直接可用数组（`dates/kline/volume/ma/rsi/macd`）
 
-- 可按 symbol_code + 日期范围稳定返回 K 线、成交量、RSI、MACD。
-- 盘中 30 分钟任务与 15:30 任务可稳定执行并记录日志。
-- 重跑同区间无重复脏数据，upsert 幂等。
-- 计划标的按窗口拉取，观察池标的按每日增量拉取。
-- 数据可支撑复盘页面 4 图容器的联动展示。
+### 6.4 观察池管理
 
-## 10. 分阶段实施建议
+- `POST /market_data/watchlist/list`
+- `POST /market_data/watchlist/add`
+- `POST /market_data/watchlist/remove`
+- `POST /market_data/watchlist/toggle`
 
-第一阶段（本期）
-- 建表（宽表 + 观察池 + 任务日志）
-- 采集任务主流程
-- 指标计算与幂等入库
-- 触发接口与图表查询接口
-- crontab 调度接入
+## 7. 标的代码规范
 
-第二阶段（后续）
-- 观察池页面维护
-- 参数配置化（MA/RSI/MACD）
-- 数据质量监控看板
-- 更细粒度周期扩展（如 30m / 5m）
+统一存储格式：`6位数字.交易所`（例如 `000001.SZ`、`510300.SH`）。
 
-## 11. 结论
+代码标准化支持输入：
 
-当前业务规模与使用场景下，MySQL 日线宽表方案可行且性价比高。优先保证链路稳定、口径统一和任务可观测性，后续再按数据规模演进分层模型。
+- `000001`
+- `sz000001`
+- `000001.SZ`
+
+最终都会归一到统一格式并据此落库。
+
+## 8. 验收要点
+
+1. `manual + dry_run` 可返回计划执行摘要。
+2. 关闭 `dry_run` 后可落库并写入任务日志。
+3. 重跑同一窗口，数据量增长符合预期且无重复脏数据。
+4. 复盘页图表可基于 `symbol_code + 日期区间` 稳定展示 4 图。
+
+## 9. 已知注意事项
+
+1. AKShare 各接口字段名偶有差异，标准化逻辑已做字段兼容映射。
+2. `intraday_30m` 在非交易时段会返回 `skipped`，这是预期行为。
+3. 若外部源临时限流，任务可能进入 `partial_success`，可通过 `detail_json` 定位失败标的。
