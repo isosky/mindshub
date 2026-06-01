@@ -13,6 +13,8 @@ import threading
 
 
 SYNC_MODES = {'incremental', 'full', 'range'}
+RIDE_ACTIVITY_TYPES = {'Ride', 'VirtualRide'}
+SYNC_ACTIVITY_TYPES = {'Run'} | RIDE_ACTIVITY_TYPES
 
 
 def _parse_datetime(value, end_of_day=False):
@@ -133,7 +135,7 @@ def _build_activity_row(activity):
         'distance_meter': _to_float(activity.get('distance')),
         'elevation_gain': _to_float(activity.get('total_elevation_gain')),
         'average_heartrate': _to_float(activity.get('average_heartrate')),
-        'average_power_watt': _to_float(activity.get('average_watts')) if activity_type == 'Ride' else None,
+        'average_power_watt': _to_float(activity.get('average_watts')) if activity_type in RIDE_ACTIVITY_TYPES else None,
         'average_pace_second_per_km': _pace_from_speed(activity.get('average_speed')) if activity_type == 'Run' else None,
         'exercise_load_score': _to_float(activity.get('suffer_score')),
     }
@@ -448,7 +450,7 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
             refresh_token=credentials['refresh_token'],
             after=after,
             before=before,
-            activity_types={'Run', 'Ride'},
+            activity_types=SYNC_ACTIVITY_TYPES,
         )
         summary['fetched_activity_count'] = len(activities)
 
@@ -475,7 +477,7 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
         run_activities = [
             activity for activity in activities_to_save if activity.get('type') == 'Run']
         ride_activities = [
-            activity for activity in activities_to_save if activity.get('type') == 'Ride']
+            activity for activity in activities_to_save if activity.get('type') in RIDE_ACTIVITY_TYPES]
         run_segment_rows = []
         ride_segment_rows = []
 
@@ -523,7 +525,7 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
             enabled_ride_segment_ids = _get_enabled_ride_segment_ids()
             ride_segment_rows = [_build_ride_segment_row(
                 segment) for segment in segment_rows
-                if segment.get('activity_type') == 'Ride' and _to_int(segment.get('segment_id')) in enabled_ride_segment_ids]
+                if segment.get('activity_type') in RIDE_ACTIVITY_TYPES and _to_int(segment.get('segment_id')) in enabled_ride_segment_ids]
             ride_segment_rows = [
                 row for row in ride_segment_rows if row['segment_effort_id'] is not None]
             _upsert_ride_segments(ride_segment_rows)
@@ -539,7 +541,7 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
         summary['saved_run_count'] = len(
             [row for row in activity_rows if row['activity_type'] == 'Run'])
         summary['saved_ride_count'] = len(
-            [row for row in activity_rows if row['activity_type'] == 'Ride'])
+            [row for row in activity_rows if row['activity_type'] in RIDE_ACTIVITY_TYPES])
         summary['saved_run_segment_count'] = len(run_segment_rows)
         summary['saved_ride_segment_count'] = len(ride_segment_rows)
         try:
@@ -604,7 +606,7 @@ def resync_activity_segments(activity_id):
             enabled_ride_segment_ids = _get_enabled_ride_segment_ids()
             ride_segment_rows = [_build_ride_segment_row(
                 segment) for segment in segment_rows
-                if segment.get('activity_type') == 'Ride' and _to_int(segment.get('segment_id')) in enabled_ride_segment_ids]
+                if segment.get('activity_type') in RIDE_ACTIVITY_TYPES and _to_int(segment.get('segment_id')) in enabled_ride_segment_ids]
             _upsert_ride_segments(ride_segment_rows)
             _upsert_ride_segment_dict_names(ride_segment_rows)
             _mark_segments_fetched([int(activity.get('id'))])

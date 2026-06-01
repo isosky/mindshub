@@ -4,7 +4,7 @@ import requests
 
 
 REQUEST_TIMEOUT = 30
-DEFAULT_ACTIVITY_TYPES = {"Run", "Ride"}
+DEFAULT_ACTIVITY_TYPES = {"Run", "Ride", "VirtualRide"}
 
 
 def _parse_datetime(value):

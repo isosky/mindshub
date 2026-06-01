@@ -9,6 +9,7 @@ from module.strava_sync import get_last_sync_status
 
 
 CURRENT_YEAR = datetime.now().year
+RIDE_ACTIVITY_TYPES = ('Ride', 'VirtualRide')
 
 
 def _serialize_rows(rows):
@@ -57,8 +58,12 @@ def _build_activity_filters(activity_type=None, start_date=None, end_date=None, 
     sql = ' from strava_activities where 1=1'
     params = []
     if activity_type:
-        sql += ' and activity_type=%s'
-        params.append(activity_type)
+        if activity_type == 'Ride':
+            sql += ' and activity_type in (%s,%s)'
+            params.extend(list(RIDE_ACTIVITY_TYPES))
+        else:
+            sql += ' and activity_type=%s'
+            params.append(activity_type)
     if start_date:
         sql += ' and start_time >= %s'
         params.append(start_date)
@@ -75,9 +80,9 @@ def _get_year_activity_distance(target_year):
     cursor.execute(
         'select '
         'sum(case when activity_type=%s then distance_meter else 0 end) as run_distance_meter, '
-        'sum(case when activity_type=%s then distance_meter else 0 end) as ride_distance_meter '
+        'sum(case when activity_type in (%s,%s) then distance_meter else 0 end) as ride_distance_meter '
         'from strava_activities where year(start_time)=%s',
-        ['Run', 'Ride', target_year],
+        ['Run', RIDE_ACTIVITY_TYPES[0], RIDE_ACTIVITY_TYPES[1], target_year],
     )
     row = cursor.fetchone() or {}
     cursor.close()
@@ -242,17 +247,18 @@ def query_activity_summary(granularity='month', target_year=None):
         f'{group_expr} as period_label, '
         'count(*) as activity_count, '
         'sum(case when activity_type=%s then 1 else 0 end) as run_count, '
-        'sum(case when activity_type=%s then 1 else 0 end) as ride_count, '
+        'sum(case when activity_type in (%s,%s) then 1 else 0 end) as ride_count, '
         'sum(case when activity_type=%s then distance_meter else 0 end) / 1000 as run_distance_km, '
-        'sum(case when activity_type=%s then distance_meter else 0 end) / 1000 as ride_distance_km, '
+        'sum(case when activity_type in (%s,%s) then distance_meter else 0 end) / 1000 as ride_distance_km, '
         'sum(duration_second) as total_duration_second, '
         'sum(elevation_gain) as total_elevation_gain, '
         'sum(exercise_load_score) as total_exercise_load, '
         'avg(case when activity_type=%s then average_heartrate else null end) as run_average_heartrate, '
-        'avg(case when activity_type=%s then average_heartrate else null end) as ride_average_heartrate '
+        'avg(case when activity_type in (%s,%s) then average_heartrate else null end) as ride_average_heartrate '
         f'from strava_activities {where_sql}'
         f'{tail_sql}',
-        ['Run', 'Ride', 'Run', 'Ride', 'Run', 'Ride'],
+        ['Run', RIDE_ACTIVITY_TYPES[0], RIDE_ACTIVITY_TYPES[1], 'Run', RIDE_ACTIVITY_TYPES[0],
+            RIDE_ACTIVITY_TYPES[1], 'Run', RIDE_ACTIVITY_TYPES[0], RIDE_ACTIVITY_TYPES[1]],
     )
     rows = cursor.fetchall()
     cursor.close()
@@ -465,14 +471,15 @@ def get_activity_overview(target_year=None):
     cursor.execute(
         'select count(*) as activity_count, '
         'sum(case when activity_type=%s then 1 else 0 end) as run_count, '
-        'sum(case when activity_type=%s then 1 else 0 end) as ride_count, '
+        'sum(case when activity_type in (%s,%s) then 1 else 0 end) as ride_count, '
         'sum(case when activity_type=%s then distance_meter else 0 end) / 1000 as run_distance_km, '
-        'sum(case when activity_type=%s then distance_meter else 0 end) / 1000 as ride_distance_km, '
+        'sum(case when activity_type in (%s,%s) then distance_meter else 0 end) / 1000 as ride_distance_km, '
         'sum(duration_second) as total_duration_second, '
         'sum(elevation_gain) as total_elevation_gain, '
         'sum(exercise_load_score) as total_exercise_load '
         'from strava_activities where year(start_time)=%s',
-        ['Run', 'Ride', 'Run', 'Ride', target_year],
+        ['Run', RIDE_ACTIVITY_TYPES[0], RIDE_ACTIVITY_TYPES[1], 'Run',
+            RIDE_ACTIVITY_TYPES[0], RIDE_ACTIVITY_TYPES[1], target_year],
     )
     row = cursor.fetchone() or {}
     cursor.close()
