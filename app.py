@@ -27,6 +27,8 @@ from routes.transaction_routes import bp as transaction_bp
 from routes.schedule_routes import bp as schedule_bp
 from routes.strava_routes import bp as strava_bp
 from routes.activity_routes import bp as activity_bp
+from routes.investment_review_routes import bp as investment_review_bp
+from routes.market_data_routes import bp as market_data_bp
 
 app = Flask(__name__)
 CORS(app, resources=r'/*', supports_credentials=True)
@@ -53,6 +55,8 @@ app.register_blueprint(transaction_bp)
 app.register_blueprint(schedule_bp)
 app.register_blueprint(strava_bp)
 app.register_blueprint(activity_bp)
+app.register_blueprint(investment_review_bp)
+app.register_blueprint(market_data_bp)
 
 
 if __name__ == '__main__':
