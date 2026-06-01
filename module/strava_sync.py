@@ -296,14 +296,47 @@ def _upsert_run_segments(rows):
     conn.close()
 
 
-def _get_enabled_ride_segment_names():
+def _get_enabled_ride_segment_ids():
     conn, cursor = connect_database()
     cursor.execute(
-        'select segment_name from strava_ride_segment_dict where is_enabled=1')
-    names = {row[0] for row in cursor.fetchall() if row[0]}
+        'select segment_id from strava_ride_segment_dict where is_enabled=1')
+    segment_ids = {row[0] for row in cursor.fetchall() if row[0] is not None}
     cursor.close()
     conn.close()
-    return names
+    return segment_ids
+
+
+def _upsert_ride_segment_dict_names(rows):
+    if not rows:
+        return
+
+    # 同步刷新字典中的名称，避免 segment 改名后字典仍保留旧名称。
+    latest_name_by_id = {}
+    for row in rows:
+        segment_id = row.get('segment_id')
+        segment_name = (row.get('segment_name') or '').strip()
+        if segment_id is None or not segment_name:
+            continue
+        latest_name_by_id[int(segment_id)] = segment_name
+
+    if not latest_name_by_id:
+        return
+
+    sql = (
+        'insert into strava_ride_segment_dict '
+        '(segment_id, segment_name, is_enabled, created_at, updated_at) '
+        'values (%s,%s,0,now(),now()) '
+        'on duplicate key update '
+        'segment_name=values(segment_name), '
+        'updated_at=now()'
+    )
+    data = [(segment_id, segment_name)
+            for segment_id, segment_name in latest_name_by_id.items()]
+    conn, cursor = connect_database()
+    cursor.executemany(sql, data)
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 
 def _upsert_ride_segments(rows):
@@ -487,13 +520,14 @@ def sync_strava_activities(sync_mode='incremental', start_date=None, end_date=No
                 row for row in run_segment_rows if row['segment_effort_id'] is not None]
             _upsert_run_segments(run_segment_rows)
 
-            enabled_ride_segment_names = _get_enabled_ride_segment_names()
+            enabled_ride_segment_ids = _get_enabled_ride_segment_ids()
             ride_segment_rows = [_build_ride_segment_row(
                 segment) for segment in segment_rows
-                if segment.get('activity_type') == 'Ride' and segment.get('segment_name') in enabled_ride_segment_names]
+                if segment.get('activity_type') == 'Ride' and _to_int(segment.get('segment_id')) in enabled_ride_segment_ids]
             ride_segment_rows = [
                 row for row in ride_segment_rows if row['segment_effort_id'] is not None]
             _upsert_ride_segments(ride_segment_rows)
+            _upsert_ride_segment_dict_names(ride_segment_rows)
 
         # mark activities as having fetched segments
         try:
@@ -567,11 +601,12 @@ def resync_activity_segments(activity_id):
             run_segment_rows = [_build_run_segment_row(
                 segment) for segment in segment_rows if segment.get('activity_type') == 'Run']
             _upsert_run_segments(run_segment_rows)
-            enabled_ride_segment_names = _get_enabled_ride_segment_names()
+            enabled_ride_segment_ids = _get_enabled_ride_segment_ids()
             ride_segment_rows = [_build_ride_segment_row(
                 segment) for segment in segment_rows
-                if segment.get('activity_type') == 'Ride' and segment.get('segment_name') in enabled_ride_segment_names]
+                if segment.get('activity_type') == 'Ride' and _to_int(segment.get('segment_id')) in enabled_ride_segment_ids]
             _upsert_ride_segments(ride_segment_rows)
+            _upsert_ride_segment_dict_names(ride_segment_rows)
             _mark_segments_fetched([int(activity.get('id'))])
         except Exception:
             pass

@@ -130,6 +130,7 @@ def get_ride_segment_dict():
 def save_ride_segment_dict():
     json_data = request.get_json(force=True) or {}
     res = activity.save_ride_segment_dict(
+        segment_id=json_data.get('segment_id'),
         segment_name=json_data.get('segment_name'),
         is_enabled=json_data.get('is_enabled', 1),
     )

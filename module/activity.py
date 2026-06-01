@@ -153,7 +153,7 @@ def save_activity_goal(ride_distance_goal_km, run_distance_goal_km, target_year=
 def get_ride_segment_dict():
     conn, cursor = connect_database(dictionary=True)
     cursor.execute(
-        'select id, segment_name, is_enabled, created_at, updated_at '
+        'select id, segment_id, segment_name, is_enabled, created_at, updated_at '
         'from strava_ride_segment_dict order by is_enabled desc, updated_at desc, id desc'
     )
     rows = cursor.fetchall()
@@ -162,25 +162,29 @@ def get_ride_segment_dict():
     return _serialize_rows(rows)
 
 
-def save_ride_segment_dict(segment_name, is_enabled=1):
-    segment_name = (segment_name or '').strip()
-    if not segment_name:
-        raise ValueError('segment_name 不能为空')
+def save_ride_segment_dict(segment_id, segment_name=None, is_enabled=1):
+    try:
+        segment_id = int(segment_id)
+    except (TypeError, ValueError):
+        raise ValueError('segment_id 不能为空且必须是整数')
+
+    segment_name = (segment_name or '').strip() or None
 
     conn, cursor = connect_database()
     cursor.execute(
         'insert into strava_ride_segment_dict '
-        '(segment_name, is_enabled, created_at, updated_at) '
-        'values (%s,%s,now(),now()) '
+        '(segment_id, segment_name, is_enabled, created_at, updated_at) '
+        'values (%s,%s,%s,now(),now()) '
         'on duplicate key update '
+        'segment_name=values(segment_name), '
         'is_enabled=values(is_enabled), '
         'updated_at=now()',
-        [segment_name, 1 if is_enabled else 0],
+        [segment_id, segment_name, 1 if is_enabled else 0],
     )
     conn.commit()
     cursor.close()
     conn.close()
-    return {'segment_name': segment_name, 'is_enabled': 1 if is_enabled else 0}
+    return {'segment_id': segment_id, 'segment_name': segment_name, 'is_enabled': 1 if is_enabled else 0}
 
 
 def delete_ride_segment_dict(row_id):

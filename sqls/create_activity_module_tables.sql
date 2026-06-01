@@ -26,12 +26,13 @@ create table if not exists activity_daily_load_metrics (
 
 create table if not exists strava_ride_segment_dict (
     id bigint not null auto_increment,
-    segment_name varchar(255) not null,
+    segment_id bigint not null,
+    segment_name varchar(255) default null,
     is_enabled tinyint not null default 1,
     created_at datetime not null default current_timestamp,
     updated_at datetime not null default current_timestamp on update current_timestamp,
     primary key (id),
-    unique key uk_strava_ride_segment_dict_segment_name (segment_name)
+    unique key uk_strava_ride_segment_dict_segment_id (segment_id)
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
 
